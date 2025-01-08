@@ -39,24 +39,51 @@ export interface RecentChangeEvent {
 }
 
 export function subscribeToRecentChanges() {
-  const url = 'https://stream.wikimedia.org/v2/stream/recentchange';
-  const eventSource = new EventSource(url);
+    const url = 'https://stream.wikimedia.org/v2/stream/recentchange';
+    let eventSource: EventSource | null = null;
+    let retryDelay = 1000; // Start with 1 second
+    const maxRetryDelay = 10000; // Maximum backoff limit is 10 seconds
 
-  return {
-    onMessage: (callback: (event: RecentChangeEvent) => void) => {
-      eventSource.onmessage = (message) => {
-        const event: RecentChangeEvent = JSON.parse(message.data);
-        console.log(event);
-        callback(event);
-      };
-    },
-    onError: (callback: (error: Event) => void) => {
-      eventSource.onerror = (error) => {
-        callback(error);
-      };
-    },
-    close: () => {
-      eventSource.close();
-    },
-  };
+    const connect = () => {
+        eventSource = new EventSource(url);
+
+        eventSource.onopen = () => {
+            // Reset retry delay on successful connection
+            retryDelay = 1000;
+        };
+
+        eventSource.onerror = () => {
+            if (eventSource) {
+                eventSource.close();
+            }
+            // Exponential backoff with a cap
+            setTimeout(connect, retryDelay);
+            retryDelay = Math.min(retryDelay * 2, maxRetryDelay);
+        };
+    };
+
+    connect();
+
+    return {
+        onMessage: (callback: (event: RecentChangeEvent) => void) => {
+            if (eventSource) {
+                eventSource.onmessage = (message) => {
+                    const event: RecentChangeEvent = JSON.parse(message.data);
+                    callback(event);
+                };
+            }
+        },
+        onError: (callback: (error: Event) => void) => {
+            if (eventSource) {
+                eventSource.onerror = (error) => {
+                    callback(error);
+                };
+            }
+        },
+        close: () => {
+            if (eventSource) {
+                eventSource.close();
+            }
+        },
+    };
 }
