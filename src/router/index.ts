@@ -8,6 +8,13 @@
 import { createRouter, createWebHistory } from 'vue-router/auto'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { routes } from 'vue-router/auto-routes'
+import Callback from '../components/Callback.vue';
+
+routes.push({
+  path: '/auth/mediawiki/callback',
+  name: 'MediaWiki auth callback',
+  component: Callback,
+})
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
