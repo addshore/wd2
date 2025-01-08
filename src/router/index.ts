@@ -9,11 +9,18 @@ import { createRouter, createWebHistory } from 'vue-router/auto'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { routes } from 'vue-router/auto-routes'
 import Callback from '../components/Callback.vue';
+import RecentChanges from '../components/RecentChanges.vue';
 
 routes.push({
   path: '/auth/mediawiki/callback',
   name: 'MediaWiki auth callback',
   component: Callback,
+})
+
+routes.push({
+  path: '/recentchanges',
+  name: 'RecentChanges',
+  component: RecentChanges,
 })
 
 const router = createRouter({

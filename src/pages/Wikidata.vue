@@ -1,21 +1,18 @@
 <template>
-  <v-app-bar app>
-    <v-btn @click="goToHome">Home</v-btn>
-    <v-btn @click="goToWikidata">Wikidata</v-btn>
-    <v-btn @click="goToRecentChanges">RecentChanges</v-btn>
-    <v-spacer></v-spacer>
-    <v-btn @click="toggleTheme">Light / Dark</v-btn>
-    <v-btn v-if="user" @click="logout">Logout</v-btn>
-    <v-btn v-else @click="login">Login</v-btn>
-  </v-app-bar>
-  <v-container>
-    <v-row justify="center" align="center" style="height: 100vh;" v-if="!user">
-      <h3>Welcome to the OAuth2 demo</h3>
-    </v-row>
-    <div v-if="user">
-      <h3>Welcome, {{ user.username }}</h3>
-    </div>
-  </v-container>
+  <div>
+    <v-app-bar app>
+      <v-btn @click="goToHome">Home</v-btn>
+      <v-btn @click="goToWikidata">Wikidata</v-btn>
+      <v-btn @click="goToRecentChanges">RecentChanges</v-btn>
+      <v-spacer></v-spacer>
+      <v-btn @click="toggleTheme">Light / Dark</v-btn>
+      <v-btn v-if="user" @click="logout">Logout</v-btn>
+      <v-btn v-else @click="login">Login</v-btn>
+    </v-app-bar>
+    <v-container>
+      <h3>Wikidata</h3>
+    </v-container>
+  </div>
 </template>
 
 <script lang="ts" setup>
@@ -47,7 +44,7 @@ function login() {
 }
 
 function goToHome() {
-  router.push('/home');
+  router.push('/');
 }
 
 function goToWikidata() {
