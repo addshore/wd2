@@ -1,9 +1,10 @@
 <template>
   <v-container>
-    <v-btn @click="login">Login with Wikimedia</v-btn>
+    <v-row justify="center" align="center" style="height: 100vh;" v-if="!user">
+      <h3>Welcome to the OAuth2 demo</h3>
+    </v-row>
     <div v-if="user">
-      <h3>Welcome, {{ user.name }}</h3>
-      <p>Your email: {{ user.email }}</p>
+      <h3>Welcome, {{ user.username }}</h3>
     </div>
   </v-container>
 </template>
@@ -16,25 +17,14 @@ const REDIRECT_URI = 'http://localhost:3000/auth/mediawiki/callback';
 export default {
   data() {
     return {
-      user: null,
+      user: JSON.parse(localStorage.getItem('user')),
     };
   },
   methods: {
-    async login() {
-      const codeVerifier = this.generateCodeVerifier();
-      const codeChallenge = await this.generateCodeChallenge(codeVerifier);
-
-      localStorage.setItem('code_verifier', codeVerifier);
-
-      const params = new URLSearchParams({
-        response_type: 'code',
-        client_id: CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
-        code_challenge: codeChallenge,
-        code_challenge_method: 'S256',
-      });
-
-      window.location.href = `${AUTH_URL}?${params.toString()}`;
+    logout() {
+      localStorage.removeItem('user');
+      this.user = null;
+      window.location.reload();
     },
     generateCodeVerifier() {
       const array = new Uint8Array(32);

@@ -1,6 +1,6 @@
 <template>
     <v-container>
-      <h3 v-if="user">Welcome back, {{ user.username }}</h3>
+      <h3 v-if="user">Redirecting...</h3>
       <p v-else-if="error">{{ error }}</p>
       <p v-else>Loading...</p>
     </v-container>
@@ -52,7 +52,13 @@
             },
           });
   
-          this.user = await userResponse.json();
+          if (userResponse.ok) {
+            this.user = await userResponse.json();
+            localStorage.setItem('user', JSON.stringify(this.user));
+            window.location.href = '/';
+          } else {
+            throw new Error('Failed to fetch user profile');
+          }
         } catch (error) {
           this.error = error.message;
         }
