@@ -13,11 +13,16 @@
     <v-navigation-drawer v-model="drawer" app>
       <v-list>
         <v-list-item>
-          <v-text-field
+          <v-autocomplete
             v-model="inputId"
-            label="ID"
+            :items="suggestions"
+            menu-icon=""
+            placeholder="Search Item"
+            auto-select-first
+            item-props
+            @update:search="fetchSuggestions"
             @keyup.enter="loadItemById"
-          ></v-text-field>
+          />
         </v-list-item>
         <v-list-item @click="reRenderRandomItem">
           <v-list-item-title>Random Item</v-list-item-title>
@@ -41,7 +46,6 @@
           <v-card-text>
             <h3 v-if="!viewingItem">Select an item to view</h3>
             <div v-if="viewingItem">
-              <h3>{{ viewingItem }}</h3>
               <div v-if="activeTab === 0">TODO</div>
               <pre v-else-if="activeTab === 1">{{ itemJson }}</pre>
               <pre v-else-if="activeTab === 2">{{ wbgetentitiesJson }}</pre>
@@ -66,6 +70,7 @@ import { useTheme } from 'vuetify';
 import { getUser, removeUser } from '../utils/storage';
 import { generateCodeVerifier, generateCodeChallenge, redirectToAuth } from '../utils/oauth';
 import { ApiClient, LabelsApi, ItemsApi } from '@wmde/wikibase-rest-api';
+import { debounce } from 'lodash';
 
 const user = ref(getUser());
 const router = useRouter();
@@ -73,6 +78,9 @@ const theme = useTheme();
 const drawer = ref(true);
 const activeTab = ref(0);
 const inputId = ref('');
+const search = ref('');
+const suggestions = ref<string[]>([]);
+const loading = ref(false);
 
 const viewingItem = ref<string | null>(null);
 const itemJson = ref<object | null>(null);
@@ -123,6 +131,7 @@ async function reRenderRandomItem() {
   const item = await randomItem();
   if (item) {
     viewingItem.value = item;
+    inputId.value = item;
   }
 }
 
@@ -179,6 +188,7 @@ watch(viewingItem, async (newItem) => {
     specialEntityDataJsonld.value = null;
     specialEntityDataHtml.value = null;
   }
+});
 
 async function fetchSpecialEntityData(itemId: string, format: string) {
   const url = `https://www.wikidata.org/wiki/Special:EntityData/${itemId}.${format}`;
@@ -224,6 +234,31 @@ function setSpecialEntityDataError(format: string, errorMessage: string) {
   }
 }
 
+const fetchSuggestions = async (query: string) => {
+  if (query.length === 0 ) {
+    suggestions.value = [];
+    return;
+  }
+  loading.value = true;
+  const url = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${query}&format=json&errorformat=plaintext&language=en&uselang=en&type=item&origin=*`;
+  try {
+    const response = await fetch(url);
+    if (response.ok) {
+      const data = await response.json();
+      suggestions.value = data.search.map((item: any) => `${item.id} - ${item.label} (${item.description})`);
+    } else {
+      suggestions.value = [];
+    }
+  } catch (error) {
+    console.error('Error fetching suggestions:', error);
+    suggestions.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
+
+watch(search, debounce(fetchSuggestions, 100));
+
 async function fetchLabel(qNumber: string): Promise<string | undefined> {
     try {
         return await labelsApi.getItemLabelWithFallback(qNumber, 'en');
@@ -231,5 +266,4 @@ async function fetchLabel(qNumber: string): Promise<string | undefined> {
         return undefined;
     }
 }
-});
 </script>

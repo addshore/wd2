@@ -16,6 +16,7 @@
     "@wmde/wikibase-rest-api": "^1.1.1",
     "chalk": "^5.4.1",
     "core-js": "^3.37.1",
+    "lodash": "^4.17.21",
     "mwn": "^2.0.4",
     "roboto-fontface": "*",
     "supports-color": "^10.0.0",
