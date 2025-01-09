@@ -47,12 +47,23 @@
                 <v-col cols="9">
                     <v-row>
                         <v-col>
-                            <h3>Recent Changes</h3>
+                            <h3>Diff viewer</h3>
                         </v-col>
                     </v-row>
                     <div v-if="selectedEvent">
+                        <h2>{{ selectedEvent.title }}</h2>
                         <div v-for="diff in selectedEvent.parsedDiffs" :key="diff.property">
-                            TODO
+                            <v-row>
+                                <v-col cols="3">
+                                    <b>{{ diff.property }}</b>
+                                </v-col>
+                                <v-col cols="4">
+                                    <v-chip v-if="diff.oldValue" :color="diff.oldValue && !diff.newValue ? 'red' : 'default'">{{ diff.oldValue }}</v-chip>
+                                </v-col>
+                                <v-col cols="4">
+                                    <v-chip v-if="diff.newValue" :color="diff.newValue && !diff.oldValue ? 'green' : 'default'">{{ diff.newValue }}</v-chip>
+                                </v-col>
+                            </v-row>
                         </div>
                     </div>
                     <p v-else>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
@@ -119,6 +130,26 @@ function parseDiffHtml(diffHtml: string): object[] {
 
     // TODO: Implement parsing of diff HTML
 
+    diffs.push({
+        property: 'P31',
+        oldValue: 'Q5',
+        newValue: 'Q42'
+    });
+
+    // exmaple removed entry
+    diffs.push({
+        property: 'P31',
+        oldValue: 'Q5',
+        newValue: undefined
+    });
+
+    // example added entry
+    diffs.push({
+        property: 'P31',
+        oldValue: undefined,
+        newValue: 'Q42'
+    });
+
     return diffs;
 }
 
@@ -161,6 +192,10 @@ onMounted(() => {
     let eventBuffer: RecentChangeEvent[] = [];
 
     recentChangeStream.onMessage(async (event) => {
+        // if there are 10 things in events, then stop
+        if (events.value.length >= 10) {
+            return;
+        }
         if (event.server_name !== "www.wikidata.org") {
             return;
         }
