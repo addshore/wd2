@@ -21,7 +21,7 @@
             auto-select-first
             item-props
             @update:search="fetchSuggestions"
-            @keyup.enter="loadItemById"
+            @keyup.enter="loadItemFromInput"
           />
         </v-list-item>
         <v-list-item @click="reRenderRandomItem">
@@ -46,7 +46,41 @@
           <v-card-text>
             <h3 v-if="!viewingItem">Select an item to view</h3>
             <div v-if="viewingItem">
-              <div v-if="activeTab === 0">TODO</div>
+              <div v-if="activeTab === 0">
+                <h2>Labels</h2>
+                <v-col no-gutters>
+                  <v-row no-gutters>
+                    <v-col cols="12" md="1">
+                      <h4>Language</h4>
+                    </v-col>
+                    <v-col cols="12" md="3">
+                      <h4>Label</h4>
+                    </v-col>
+                    <v-col cols="12" md="4">
+                      <h4>Description</h4>
+                    </v-col>
+                    <v-col cols="12" md="2">
+                      <h4>Aliases</h4>
+                    </v-col>
+                  </v-row>
+                  <v-row no-gutters v-for="lang in Object.keys({ ...itemJson?.labels, ...itemJson?.descriptions })" :key="lang">
+                    <v-col cols="12" md="1">
+                      <span>{{ lang }}</span>
+                    </v-col>
+                    <v-col cols="12" md="3">
+                      <span>{{ itemJson.labels[lang] }}</span>
+                    </v-col>
+                    <v-col cols="12" md="4">
+                      <span>{{ itemJson.descriptions[lang] || '' }}</span>
+                    </v-col>
+                    <v-col cols="12" md="2">
+                      <div v-for="alias in itemJson.aliases[lang] || []" :key="alias">
+                        <span>{{ alias }}</span>
+                      </div>
+                    </v-col>
+                  </v-row>
+                </v-col>
+              </div>
               <pre v-else-if="activeTab === 1">{{ itemJson }}</pre>
               <pre v-else-if="activeTab === 2">{{ wbgetentitiesJson }}</pre>
               <!-- <pre v-else-if="activeTab === 3">{{ specialEntityDataPhp }}</pre> -->
@@ -83,7 +117,7 @@ const suggestions = ref<string[]>([]);
 const loading = ref(false);
 
 const viewingItem = ref<string | null>(null);
-const itemJson = ref<object | null>(null);
+const itemJson = ref<any | null>(null);
 const wbgetentitiesJson = ref<object | null>(null);
 const specialEntityDataPhp = ref<object | null>(null);
 const specialEntityDataN3 = ref<object | null>(null);
@@ -148,9 +182,14 @@ async function randomItem(): Promise<string | undefined> {
     }
 }
 
-async function loadItemById() {
+async function loadItemFromInput() {
+  console.log('loadItemFromInput', inputId.value);
   if (inputId.value) {
-    viewingItem.value = inputId.value;
+    // this is either just an ID, or Q123 - Label (Description)
+    const match = inputId.value.match(/Q\d+/);
+    const id = match ? match[0] : inputId.value;
+    viewingItem.value = id
+    inputId.value = id;
   }
 }
 
