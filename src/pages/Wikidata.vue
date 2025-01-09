@@ -31,15 +31,7 @@
     </v-navigation-drawer>
     <v-container>
       <v-tabs v-model="activeTab">
-        <v-tab>HTML</v-tab>
-        <v-tab>REST API</v-tab>
-        <v-tab>ACTION API</v-tab>
-        <!-- <v-tab>PHP</v-tab> -->
-        <!-- <v-tab>N3</v-tab> -->
-        <v-tab>TTL</v-tab>
-        <v-tab>NT</v-tab>
-        <v-tab>RDF</v-tab>
-        <v-tab>JSONLD</v-tab>
+        <v-tab>Entity</v-tab>
       </v-tabs>
       <v-tab-item>
         <v-card>
@@ -47,70 +39,103 @@
             <h3 v-if="!viewingItem">Select an item to view</h3>
             <div v-if="viewingItem">
               <div v-if="activeTab === 0">
-                <h2>Labels</h2>
-                <v-col no-gutters>
-                  <v-row no-gutters>
-                    <v-col cols="12" md="1">
-                      <h4>Language</h4>
+                <v-row>
+                  <v-col cols="8">
+                    <h2>{{ viewingItem }}</h2>
+                    <a :href="'https://www.wikidata.org/wiki/' + viewingItem" target="_blank">Wikidata</a>,
+                    <a :href="'https://www.wikidata.org/w/rest.php/wikibase/v1/entities/items/' + viewingItem " target="_blank">REST API</a>,
+                    <a :href="'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' + viewingItem " target="_blank">Action API</a>,
+                    <a :href="'https://www.wikidata.org/wiki/Special:EntityData/' + viewingItem + '.json'" target="_blank">Entity Data</a>,
+                    <a :href="'https://reasonator.toolforge.org/?q=' + viewingItem" target="_blank">Reasonator</a>
+                    <!-- select * where {wd:Q123 ?b ?c} -->
+                    <v-col no-gutters>
+                      <v-row no-gutters class="outlined-row">
+                        <v-col cols="12" md="1">
+                          <h4>Language</h4>
+                        </v-col>
+                        <v-col cols="12" md="3">
+                          <h4>Label</h4>
+                        </v-col>
+                        <v-col cols="12" md="4">
+                          <h4>Description</h4>
+                        </v-col>
+                        <v-col cols="12" md="2">
+                          <h4>Aliases</h4>
+                        </v-col>
+                      </v-row>
+                      <v-row no-gutters v-for="lang in Object.keys({ ...itemJson?.labels, ...itemJson?.descriptions }).slice(0, 5)" :key="lang" class="outlined-row">
+                        <v-col cols="12" md="1">
+                          <span>{{ lang }}</span>
+                        </v-col>
+                        <v-col cols="12" md="3">
+                          <span>{{ itemJson.labels[lang] }}</span>
+                        </v-col>
+                        <v-col cols="12" md="4">
+                          <span>{{ itemJson.descriptions[lang] || '' }}</span>
+                        </v-col>
+                        <v-col cols="12" md="2">
+                          <div v-for="alias in itemJson.aliases[lang] || []" :key="alias">
+                            <span>{{ alias }}</span>
+                          </div>
+                        </v-col>
+                      </v-row>
+                      <span @click="showMoreLanguages = !showMoreLanguages" class="expand-icon" title="Toggle Languages" v-if = "Object.keys({ ...itemJson?.labels, ...itemJson?.descriptions }).length > 5">
+                        <v-icon right>
+                          {{ showMoreLanguages ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+                        </v-icon>
+                        <small v-if="!showMoreLanguages">Show More</small>
+                        <small v-if="showMoreLanguages">Show Less</small>
+                      </span>
+                      <v-expand-transition>
+                        <div v-show="showMoreLanguages">
+                          <v-row no-gutters v-for="lang in Object.keys({ ...itemJson?.labels, ...itemJson?.descriptions }).slice(5)" :key="lang" class="outlined-row">
+                            <v-col cols="12" md="1">
+                              <span>{{ lang }}</span>
+                            </v-col>
+                            <v-col cols="12" md="3">
+                              <span>{{ itemJson.labels[lang] }}</span>
+                            </v-col>
+                            <v-col cols="12" md="4">
+                              <span>{{ itemJson.descriptions[lang] || '' }}</span>
+                            </v-col>
+                            <v-col cols="12" md="2">
+                              <div v-for="alias in itemJson.aliases[lang] || []" :key="alias">
+                                <span>{{ alias }}</span>
+                              </div>
+                            </v-col>
+                          </v-row>
+                        </div>
+                      </v-expand-transition>
                     </v-col>
-                    <v-col cols="12" md="3">
-                      <h4>Label</h4>
+                  </v-col>
+                  <v-col cols="4">
+                    <h2>Sitelinks</h2>
+                    <v-col no-gutters>
+                      <v-row no-gutters class="outlined-row">
+                        <v-col cols="12" md="3">
+                          <h4>Site</h4>
+                        </v-col>
+                        <v-col cols="12" md="7">
+                          <h4>Title</h4>
+                        </v-col>
+                      </v-row>
+                      <transition-group name="fade" tag="div">
+                        <v-row no-gutters v-for="(sitelink, site) in itemJson?.sitelinks" :key="site" class="outlined-row">
+                          <v-col cols="12" md="3">
+                            <span>{{ site }}</span>
+                          </v-col>
+                          <v-col cols="12" md="7">
+                            <a :href="sitelink.url" target="_blank">{{ sitelink.title }}</a>
+                            <v-chip v-for="badge in sitelink.badges" :key="badge" color="primary" class="ma-2" density="compact">
+                              {{ getBadgeLabel(badge) }}
+                            </v-chip>
+                          </v-col>
+                        </v-row>
+                      </transition-group>
                     </v-col>
-                    <v-col cols="12" md="4">
-                      <h4>Description</h4>
-                    </v-col>
-                    <v-col cols="12" md="2">
-                      <h4>Aliases</h4>
-                    </v-col>
-                  </v-row>
-                  <v-row no-gutters v-for="lang in Object.keys({ ...itemJson?.labels, ...itemJson?.descriptions })" :key="lang">
-                    <v-col cols="12" md="1">
-                      <span>{{ lang }}</span>
-                    </v-col>
-                    <v-col cols="12" md="3">
-                      <span>{{ itemJson.labels[lang] }}</span>
-                    </v-col>
-                    <v-col cols="12" md="4">
-                      <span>{{ itemJson.descriptions[lang] || '' }}</span>
-                    </v-col>
-                    <v-col cols="12" md="2">
-                      <div v-for="alias in itemJson.aliases[lang] || []" :key="alias">
-                        <span>{{ alias }}</span>
-                      </div>
-                    </v-col>
-                  </v-row>
-                </v-col>
-                <h2>Sitelinks</h2>
-                <v-col no-gutters>
-                  <v-row no-gutters>
-                    <v-col cols="12" md="3">
-                      <h4>Site</h4>
-                    </v-col>
-                    <v-col cols="12" md="7">
-                      <h4>Title</h4>
-                    </v-col>
-                  </v-row>
-                  <v-row no-gutters v-for="(sitelink, site) in itemJson?.sitelinks" :key="site">
-                    <v-col cols="12" md="3">
-                      <span>{{ site }}</span>
-                    </v-col>
-                    <v-col cols="12" md="7">
-                      <a :href="sitelink.url" target="_blank">{{ sitelink.title }}</a>
-                      <v-chip v-for="badge in sitelink.badges" :key="badge" color="primary" class="ma-2">
-                        {{ getBadgeLabel(badge) }}
-                      </v-chip>
-                    </v-col>
-                  </v-row>
-                </v-col>
+                  </v-col>
+                </v-row>
               </div>
-              <pre v-else-if="activeTab === 1">{{ itemJson }}</pre>
-              <pre v-else-if="activeTab === 2">{{ wbgetentitiesJson }}</pre>
-              <!-- <pre v-else-if="activeTab === 3">{{ specialEntityDataPhp }}</pre> -->
-              <!-- <pre v-else-if="activeTab === 4">{{ specialEntityDataN3 }}</pre> -->
-              <pre v-else-if="activeTab === 3">{{ specialEntityDataTtl }}</pre>
-              <pre v-else-if="activeTab === 4">{{ specialEntityDataNt }}</pre>
-              <pre v-else-if="activeTab === 5">{{ specialEntityDataRdf }}</pre>
-              <pre v-else-if="activeTab === 6">{{ specialEntityDataJsonld }}</pre>
             </div>
           </v-card-text>
         </v-card>
@@ -137,17 +162,10 @@ const inputId = ref('');
 const search = ref('');
 const suggestions = ref<string[]>([]);
 const loading = ref(false);
+const showMoreLanguages = ref(false);
 
 const viewingItem = ref<string | null>(null);
 const itemJson = ref<any | null>(null);
-const wbgetentitiesJson = ref<object | null>(null);
-const specialEntityDataPhp = ref<object | null>(null);
-const specialEntityDataN3 = ref<object | null>(null);
-const specialEntityDataTtl = ref<object | null>(null);
-const specialEntityDataNt = ref<object | null>(null);
-const specialEntityDataRdf = ref<object | null>(null);
-const specialEntityDataJsonld = ref<object | null>(null);
-const specialEntityDataHtml = ref<object | null>(null);
 const badgeLabels = ref<Map<string, string>>(new Map());
 
 const apiClient = new ApiClient('https://www.wikidata.org/w/rest.php/wikibase/v1');
@@ -255,61 +273,9 @@ watch(viewingItem, async (newItem) => {
     }
   } else {
     itemJson.value = null;
-    wbgetentitiesJson.value = null;
-    specialEntityDataPhp.value = null;
-    specialEntityDataN3.value = null;
-    specialEntityDataTtl.value = null;
-    specialEntityDataNt.value = null;
-    specialEntityDataRdf.value = null;
-    specialEntityDataJsonld.value = null;
-    specialEntityDataHtml.value = null;
     badgeLabels.value.clear();
   }
 });
-
-async function fetchSpecialEntityData(itemId: string, format: string) {
-  const url = `https://www.wikidata.org/wiki/Special:EntityData/${itemId}.${format}`;
-  try {
-    const response = await fetch(url);
-    if (response.ok) {
-      switch (format) {
-        case 'ttl':
-          specialEntityDataTtl.value = await response.text();
-          break;
-        case 'nt':
-          specialEntityDataNt.value = await response.text();
-          break;
-        case 'rdf':
-          specialEntityDataRdf.value = await response.text();
-          break;
-        case 'jsonld':
-          specialEntityDataJsonld.value = await response.text();
-          break;
-      }
-    } else {
-      setSpecialEntityDataError(format, 'Failed to fetch item data');
-    }
-  } catch (error) {
-    setSpecialEntityDataError(format, 'Error fetching item data');
-  }
-}
-
-function setSpecialEntityDataError(format: string, errorMessage: string) {
-  switch (format) {
-    case 'ttl':
-      specialEntityDataTtl.value = { error: errorMessage };
-      break;
-    case 'nt':
-      specialEntityDataNt.value = { error: errorMessage };
-      break;
-    case 'rdf':
-      specialEntityDataRdf.value = { error: errorMessage };
-      break;
-    case 'jsonld':
-      specialEntityDataJsonld.value = { error: errorMessage };
-      break;
-  }
-}
 
 const fetchSuggestions = async (query: string) => {
   if (query.length === 0 ) {
@@ -348,3 +314,9 @@ function getBadgeLabel(badge: string): string {
   return badgeLabels.value.get(badge) || badge;
 }
 </script>
+
+<style scoped>
+.outlined-row {
+  border: 1px solid #494949;
+}
+</style>
