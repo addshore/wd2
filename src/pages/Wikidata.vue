@@ -80,6 +80,28 @@
                     </v-col>
                   </v-row>
                 </v-col>
+                <h2>Sitelinks</h2>
+                <v-col no-gutters>
+                  <v-row no-gutters>
+                    <v-col cols="12" md="3">
+                      <h4>Site</h4>
+                    </v-col>
+                    <v-col cols="12" md="7">
+                      <h4>Title</h4>
+                    </v-col>
+                  </v-row>
+                  <v-row no-gutters v-for="(sitelink, site) in itemJson?.sitelinks" :key="site">
+                    <v-col cols="12" md="3">
+                      <span>{{ site }}</span>
+                    </v-col>
+                    <v-col cols="12" md="7">
+                      <a :href="sitelink.url" target="_blank">{{ sitelink.title }}</a>
+                      <v-chip v-for="badge in sitelink.badges" :key="badge" color="primary" class="ma-2">
+                        {{ getBadgeLabel(badge) }}
+                      </v-chip>
+                    </v-col>
+                  </v-row>
+                </v-col>
               </div>
               <pre v-else-if="activeTab === 1">{{ itemJson }}</pre>
               <pre v-else-if="activeTab === 2">{{ wbgetentitiesJson }}</pre>
@@ -126,6 +148,7 @@ const specialEntityDataNt = ref<object | null>(null);
 const specialEntityDataRdf = ref<object | null>(null);
 const specialEntityDataJsonld = ref<object | null>(null);
 const specialEntityDataHtml = ref<object | null>(null);
+const badgeLabels = ref<Map<string, string>>(new Map());
 
 const apiClient = new ApiClient('https://www.wikidata.org/w/rest.php/wikibase/v1');
 const itemsApi = new ItemsApi(apiClient);
@@ -216,6 +239,20 @@ watch(viewingItem, async (newItem) => {
     for (const format of formats) {
       await fetchSpecialEntityData(newItem, format);
     }
+
+    // Fetch badge labels
+    const badges = new Set<string>();
+    for (const sitelink of Object.values(itemJson.value.sitelinks || {})) {
+      for (const badge of sitelink.badges) {
+        badges.add(badge);
+      }
+    }
+    for (const badge of badges) {
+      const label = await fetchLabel(badge);
+      if (label) {
+        badgeLabels.value.set(badge, label);
+      }
+    }
   } else {
     itemJson.value = null;
     wbgetentitiesJson.value = null;
@@ -226,6 +263,7 @@ watch(viewingItem, async (newItem) => {
     specialEntityDataRdf.value = null;
     specialEntityDataJsonld.value = null;
     specialEntityDataHtml.value = null;
+    badgeLabels.value.clear();
   }
 });
 
@@ -304,5 +342,9 @@ async function fetchLabel(qNumber: string): Promise<string | undefined> {
     } catch {
         return undefined;
     }
+}
+
+function getBadgeLabel(badge: string): string {
+  return badgeLabels.value.get(badge) || badge;
 }
 </script>
