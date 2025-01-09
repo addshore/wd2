@@ -14,6 +14,8 @@
     </v-row>
     <div v-if="user">
       <h3>Welcome, {{ user.username }}</h3>
+      <p>Click on the buttons above to navigate to different pages</p>
+      <p>This is an app, that does stufff...</p>
     </div>
   </v-container>
 </template>
@@ -47,7 +49,7 @@ function login() {
 }
 
 function goToHome() {
-  router.push('/home');
+  router.push('/');
 }
 
 function goToWikidata() {

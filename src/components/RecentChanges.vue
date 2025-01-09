@@ -96,7 +96,6 @@ const showFilterDialog = ref(false);
 const selectedEvent = ref<RecentChangeEvent | null>(null);
 
 const apiClient = new ApiClient('https://www.wikidata.org/w/rest.php/wikibase/v1');
-apiClient.defaultHeaders['User-Agent'] = window.navigator.userAgent;
 const labelsApi = new LabelsApi(apiClient);
 
 async function fetchLabel(qNumber: string): Promise<string | undefined> {
