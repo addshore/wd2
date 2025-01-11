@@ -4,6 +4,7 @@
     <v-btn @click="goToHome">Home</v-btn>
     <v-btn @click="goToWikidata">Wikidata</v-btn>
     <v-btn @click="goToRecentChanges">RecentChanges</v-btn>
+    <v-btn @click="goToWikibaseWorld">Wikibase World</v-btn>
     <v-spacer></v-spacer>
     <v-btn @click="toggleTheme">Light / Dark</v-btn>
     <v-btn v-if="user" @click="logout">Logout</v-btn>
@@ -49,5 +50,9 @@ function goToWikidata() {
 
 function goToRecentChanges() {
   router.push('/recentchanges');
+}
+
+function goToWikibaseWorld() {
+  router.push('/wikibases');
 }
 </script>
