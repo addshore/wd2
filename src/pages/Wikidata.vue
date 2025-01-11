@@ -1,15 +1,6 @@
 <template>
   <div>
-    <v-app-bar app>
-      <!-- <v-btn @click="toggleDrawer">Menu</v-btn> -->
-      <v-btn @click="goToHome">Home</v-btn>
-      <v-btn @click="goToWikidata">Wikidata</v-btn>
-      <v-btn @click="goToRecentChanges">RecentChanges</v-btn>
-      <v-spacer></v-spacer>
-      <v-btn @click="toggleTheme">Light / Dark</v-btn>
-      <v-btn v-if="user" @click="logout">Logout</v-btn>
-      <v-btn v-else @click="login">Login</v-btn>
-    </v-app-bar>
+    <NavBar />
     <v-navigation-drawer v-model="drawer" app>
       <v-list>
         <v-list-item>
@@ -152,6 +143,7 @@ import { getUser, removeUser } from '../utils/storage';
 import { generateCodeVerifier, generateCodeChallenge, redirectToAuth } from '../utils/oauth';
 import { ApiClient, LabelsApi, ItemsApi } from '@wmde/wikibase-rest-api';
 import { debounce } from 'lodash';
+import NavBar from '../components/NavBar.vue';
 
 const user = ref(getUser());
 const router = useRouter();
@@ -171,36 +163,6 @@ const badgeLabels = ref<Map<string, string>>(new Map());
 const apiClient = new ApiClient('https://www.wikidata.org/w/rest.php/wikibase/v1');
 const itemsApi = new ItemsApi(apiClient);
 const labelsApi = new LabelsApi(apiClient);
-
-function toggleTheme() {
-  theme.global.name.value = theme.global.current.value.dark ? 'light' : 'dark';
-    return undefined;
-}
-
-function logout() {
-  removeUser();
-  user.value = null;
-  window.location.reload();
-}
-
-function login() {
-  const codeVerifier = generateCodeVerifier();
-  generateCodeChallenge(codeVerifier).then(codeChallenge => {
-    redirectToAuth(codeChallenge, codeVerifier);
-  });
-}
-
-function goToHome() {
-  router.push('/');
-}
-
-function goToWikidata() {
-  router.push('/wikidata');
-}
-
-function goToRecentChanges() {
-  router.push('/recentchanges');
-}
 
 async function reRenderRandomItem() {
   const item = await randomItem();
