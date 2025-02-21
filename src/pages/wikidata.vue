@@ -160,7 +160,7 @@ const viewingItem = ref<string | null>(null);
 const itemJson = ref<any | null>(null);
 const badgeLabels = ref<Map<string, string>>(new Map());
 
-const apiClient = new ApiClient('https://www.wikidata.org/w/rest.php/wikibase/v1');
+const apiClient = new ApiClient('https://www.wikidata.org/w/rest.php/wikibase');
 const itemsApi = new ItemsApi(apiClient);
 const labelsApi = new LabelsApi(apiClient);
 
