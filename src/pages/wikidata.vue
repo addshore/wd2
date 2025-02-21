@@ -12,47 +12,41 @@
             auto-select-first
             item-props
             @update:search="fetchSuggestions"
-            @keyup.enter="loadItemFromInput"
+            @keyup.enter="handleEnter"
           />
         </v-list-item>
-        <v-list-item @click="reRenderRandomItem">
+        <v-list-item @click="newTabRandomItem">
           <v-list-item-title>Random Item</v-list-item-title>
         </v-list-item>
       </v-list>
     </v-navigation-drawer>
     <v-container>
       <v-tabs v-model="activeTab">
-        <v-tab>Entity</v-tab>
+      <v-tab v-for="(tab, index) in tabs" :key="index">
+        {{ tab }}
+        <v-btn icon density="compact" @click.stop="closeTab(index)">
+        <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-tab>
+      <v-tab @click="addNewTab">+</v-tab>
       </v-tabs>
-      <v-tab-item>
-        <v-card>
-          <v-card-text>
-            <h3 v-if="!viewingItem">Select an item to view</h3>
-            <div v-if="viewingItem">
-              <div v-if="activeTab === 0">
-                <v-row>
-                  <v-col cols="8">
-                    <h2>{{ viewingItem }}</h2>
-                    <a :href="'https://www.wikidata.org/wiki/' + viewingItem" target="_blank">Wikidata</a>,
-                    <a :href="'https://www.wikidata.org/w/rest.php/wikibase/v1/entities/items/' + viewingItem " target="_blank">REST API</a>,
-                    <a :href="'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' + viewingItem " target="_blank">Action API</a>,
-                    <a :href="'https://www.wikidata.org/wiki/Special:EntityData/' + viewingItem + '.json'" target="_blank">Entity Data</a>,
-                    <a :href="'https://reasonator.toolforge.org/?q=' + viewingItem" target="_blank">Reasonator</a>
-                    <!-- select * where {wd:Q123 ?b ?c} -->
-                    <h2>Terms</h2>
-                    <v-data-table density="compact"  :items="terms" hide-default-header hide-default-footer></v-data-table>
-                    <h2>Sitelinks</h2>
-                    <v-data-table density="compact" :items="sitelinks" hide-default-header hide-default-footer></v-data-table>
-                    <h2>Statements</h2>
-                    <v-data-table density="compact" :items="statements" hide-default-header hide-default-footer></v-data-table>
-                  </v-col>
-                  <v-col cols="4">
-                  </v-col>
-                </v-row>
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
+      <v-tab-item v-for="(tab, index) in tabs" :key="index">
+      <v-card v-if="activeTab === index">
+        <v-card-text>
+        <h2>Terms</h2>
+        <v-data-table density="compact" :items="terms" hide-default-header hide-default-footer></v-data-table>
+        <h2>Sitelinks</h2>
+        <v-data-table density="compact" :items="sitelinks" hide-default-header hide-default-footer></v-data-table>
+        <h2>Statements</h2>
+        <v-data-table density="compact" :items="statements" hide-default-header hide-default-footer></v-data-table>
+        <h2>Links</h2>
+        <a :href="'https://www.wikidata.org/wiki/' + tab" target="_blank">Wikidata</a>,
+        <a :href="'https://www.wikidata.org/w/rest.php/wikibase/v1/entities/items/' + tab" target="_blank">REST API</a>,
+        <a :href="'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' + tab" target="_blank">Action API</a>,
+        <a :href="'https://www.wikidata.org/wiki/Special:EntityData/' + tab + '.json'" target="_blank">Entity Data</a>,
+        <a :href="'https://reasonator.toolforge.org/?q=' + tab" target="_blank">Reasonator</a>
+        </v-card-text>
+      </v-card>
       </v-tab-item>
     </v-container>
   </div>
@@ -75,7 +69,7 @@ const search = ref('');
 const suggestions = ref<string[]>([]);
 const loading = ref(false);
 
-const viewingItem = ref<string | null>(null);
+const tabs = ref<string[]>([]);
 const itemJson = ref<any | null>(null);
 const badgeLabels = ref<Map<string, string>>(new Map());
 
@@ -83,15 +77,33 @@ const apiClient = new ApiClient('https://www.wikidata.org/w/rest.php/wikibase');
 const itemsApi = new ItemsApi(apiClient);
 const labelsApi = new LabelsApi(apiClient);
 
-const terms = ref([]);
-const sitelinks = ref([]);
-const statements = ref([]);
+interface Term {
+  language: string;
+  label: string;
+  description: string;
+  aliases: string;
+}
+const terms = ref<Term[]>([]);
 
-async function reRenderRandomItem() {
+interface Sitelink {
+  site: string;
+  title: string;
+  url: string;
+  badges: string;
+}
+const sitelinks = ref<Sitelink[]>([]);
+
+// TODO type
+const statements = ref<any[]>([]);
+
+const termsMap = ref<Map<string, any[]>>(new Map());
+const sitelinksMap = ref<Map<string, any[]>>(new Map());
+const statementsMap = ref<Map<string, any[]>>(new Map());
+
+async function newTabRandomItem() {
   const item = await randomItem();
   if (item) {
-    viewingItem.value = item;
-    inputId.value = item;
+    addItemToTabs(item);
   }
 }
 
@@ -108,56 +120,97 @@ async function randomItem(): Promise<string | undefined> {
     }
 }
 
-async function loadItemFromInput() {
-  console.log('loadItemFromInput', inputId.value);
-  if (inputId.value) {
-    // this is either just an ID, or Q123 - Label (Description)
-    const match = inputId.value.match(/Q\d+/);
-    const id = match ? match[0] : inputId.value;
-    viewingItem.value = id
-    inputId.value = id;
+function handleEnter(event: KeyboardEvent) {
+  if (event.ctrlKey) {
+    addItemToTabs(inputId.value);
+  } else {
+    loadItemFromInput();
   }
 }
 
-watch(viewingItem, async (newItem) => {
-  if (newItem) {
-    const json = await itemsApi.getItem(newItem);
+async function loadItemFromInput() {
+  console.log('loadItemFromInput', inputId.value);
+  if (inputId.value) {
+    const match = inputId.value.match(/Q\d+/);
+    const id = match ? match[0] : inputId.value;
+    addItemToTabs(id);
+  }
+}
+
+function addItemToTabs(item: string) {
+  if (!tabs.value.includes(item)) {
+    tabs.value.push(item);
+  }
+  activeTab.value = tabs.value.indexOf(item);
+
+  // Ensure the content is displayed when the first tab is loaded
+  if (tabs.value.length === 1) {
+    loadItemData(item);
+  }
+}
+
+function addNewTab() {
+  const newTab = `New Tab ${tabs.value.length + 1}`;
+  tabs.value.push(newTab);
+  activeTab.value = tabs.value.length - 1;
+}
+
+function closeTab(index: number) {
+  const closedItem = tabs.value[index];
+  tabs.value.splice(index, 1);
+
+  // Adjust selected tab
+  if (index <= activeTab.value) {
+    activeTab.value = activeTab.value - 1;
+  }
+  if (activeTab.value < 0) {
+    activeTab.value = 0;
+  }
+
+  // Remove data from maps if no tabs are open for the item
+  if (!tabs.value.includes(closedItem)) {
+    termsMap.value.delete(closedItem);
+    sitelinksMap.value.delete(closedItem);
+    statementsMap.value.delete(closedItem);
+  }
+}
+
+watch(activeTab, async (newTabIndex) => {
+  const newItem = tabs.value[newTabIndex];
+  if (!newItem) {
+    itemJson.value = null;
+    terms.value = [];
+    sitelinks.value = [];
+    badgeLabels.value.clear();
+    statements.value = [];
+    return;
+  }
+
+  loadItemData(newItem);
+});
+
+async function loadItemData(item: string) {
+  if (!termsMap.value.has(item) || !sitelinksMap.value.has(item) || !statementsMap.value.has(item)) {
+    const json = await itemsApi.getItem(item);
     itemJson.value = json;
 
     // Update terms
-    terms.value = Object.keys({ ...itemJson.value.labels, ...itemJson.value.descriptions }).map(lang => ({
+    const terms = Object.keys({ ...itemJson.value.labels, ...itemJson.value.descriptions }).map(lang => ({
       language: lang,
       label: itemJson.value.labels[lang],
       description: itemJson.value.descriptions[lang] || '',
       aliases: (itemJson.value.aliases[lang] || []).join(', ')
     }));
+    termsMap.value.set(item, terms);
 
     // Update sitelinks
-    sitelinks.value = Object.entries(itemJson.value.sitelinks || {}).map(([site, sitelink]) => ({
+    const sitelinks = Object.entries(itemJson.value.sitelinks || {}).map(([site, sitelink]) => ({
       site,
       title: sitelink.title,
       url: sitelink.url,
       badges: sitelink.badges.map(badge => getBadgeLabel(badge)).join(', ')
     }));
-
-    // Fetch the JSON for the currently selected item from wbgetentities
-    const wbgetentitiesUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${newItem}&format=json&origin=*`;
-    try {
-      const response = await fetch(wbgetentitiesUrl);
-      if (response.ok) {
-        wbgetentitiesJson.value = (await response.json()).entities[newItem];
-      } else {
-        wbgetentitiesJson.value = { error: 'Failed to fetch item JSON' };
-      }
-    } catch (error) {
-      wbgetentitiesJson.value = { error: 'Error fetching item JSON' };
-    }
-
-    // Fetch special entity data
-    const formats = ['ttl', 'nt', 'rdf', 'jsonld'];
-    for (const format of formats) {
-      await fetchSpecialEntityData(newItem, format);
-    }
+    sitelinksMap.value.set(item, sitelinks);
 
     // Fetch badge labels
     const badges = new Set<string>();
@@ -172,13 +225,16 @@ watch(viewingItem, async (newItem) => {
         badgeLabels.value.set(badge, label);
       }
     }
-  } else {
-    itemJson.value = null;
-    terms.value = [];
-    sitelinks.value = [];
-    badgeLabels.value.clear();
+
+    // Update statements
+    const statements = itemJson.value.claims || [];
+    statementsMap.value.set(item, statements);
   }
-});
+
+  terms.value = termsMap.value.get(item) || [];
+  sitelinks.value = sitelinksMap.value.get(item) || [];
+  statements.value = statementsMap.value.get(item) || [];
+}
 
 const fetchSuggestions = async (query: string) => {
   if (query.length === 0 ) {
