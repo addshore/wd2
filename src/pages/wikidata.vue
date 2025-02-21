@@ -39,91 +39,14 @@
                     <a :href="'https://www.wikidata.org/wiki/Special:EntityData/' + viewingItem + '.json'" target="_blank">Entity Data</a>,
                     <a :href="'https://reasonator.toolforge.org/?q=' + viewingItem" target="_blank">Reasonator</a>
                     <!-- select * where {wd:Q123 ?b ?c} -->
-                    <v-col no-gutters>
-                      <v-row no-gutters class="outlined-row">
-                        <v-col cols="12" md="1">
-                          <h4>Language</h4>
-                        </v-col>
-                        <v-col cols="12" md="3">
-                          <h4>Label</h4>
-                        </v-col>
-                        <v-col cols="12" md="4">
-                          <h4>Description</h4>
-                        </v-col>
-                        <v-col cols="12" md="2">
-                          <h4>Aliases</h4>
-                        </v-col>
-                      </v-row>
-                      <v-row no-gutters v-for="lang in Object.keys({ ...itemJson?.labels, ...itemJson?.descriptions }).slice(0, 5)" :key="lang" class="outlined-row">
-                        <v-col cols="12" md="1">
-                          <span>{{ lang }}</span>
-                        </v-col>
-                        <v-col cols="12" md="3">
-                          <span>{{ itemJson.labels[lang] }}</span>
-                        </v-col>
-                        <v-col cols="12" md="4">
-                          <span>{{ itemJson.descriptions[lang] || '' }}</span>
-                        </v-col>
-                        <v-col cols="12" md="2">
-                          <div v-for="alias in itemJson.aliases[lang] || []" :key="alias">
-                            <span>{{ alias }}</span>
-                          </div>
-                        </v-col>
-                      </v-row>
-                      <span @click="showMoreLanguages = !showMoreLanguages" class="expand-icon" title="Toggle Languages" v-if = "Object.keys({ ...itemJson?.labels, ...itemJson?.descriptions }).length > 5">
-                        <v-icon right>
-                          {{ showMoreLanguages ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
-                        </v-icon>
-                        <small v-if="!showMoreLanguages">Show More</small>
-                        <small v-if="showMoreLanguages">Show Less</small>
-                      </span>
-                      <v-expand-transition>
-                        <div v-show="showMoreLanguages">
-                          <v-row no-gutters v-for="lang in Object.keys({ ...itemJson?.labels, ...itemJson?.descriptions }).slice(5)" :key="lang" class="outlined-row">
-                            <v-col cols="12" md="1">
-                              <span>{{ lang }}</span>
-                            </v-col>
-                            <v-col cols="12" md="3">
-                              <span>{{ itemJson.labels[lang] }}</span>
-                            </v-col>
-                            <v-col cols="12" md="4">
-                              <span>{{ itemJson.descriptions[lang] || '' }}</span>
-                            </v-col>
-                            <v-col cols="12" md="2">
-                              <div v-for="alias in itemJson.aliases[lang] || []" :key="alias">
-                                <span>{{ alias }}</span>
-                              </div>
-                            </v-col>
-                          </v-row>
-                        </div>
-                      </v-expand-transition>
-                    </v-col>
+                    <h2>Terms</h2>
+                    <v-data-table density="compact"  :items="terms" hide-default-header hide-default-footer></v-data-table>
+                    <h2>Sitelinks</h2>
+                    <v-data-table density="compact" :items="sitelinks" hide-default-header hide-default-footer></v-data-table>
+                    <h2>Statements</h2>
+                    <v-data-table density="compact" :items="statements" hide-default-header hide-default-footer></v-data-table>
                   </v-col>
                   <v-col cols="4">
-                    <h2>Sitelinks</h2>
-                    <v-col no-gutters>
-                      <v-row no-gutters class="outlined-row">
-                        <v-col cols="12" md="3">
-                          <h4>Site</h4>
-                        </v-col>
-                        <v-col cols="12" md="7">
-                          <h4>Title</h4>
-                        </v-col>
-                      </v-row>
-                      <transition-group name="fade" tag="div">
-                        <v-row no-gutters v-for="(sitelink, site) in itemJson?.sitelinks" :key="site" class="outlined-row">
-                          <v-col cols="12" md="3">
-                            <span>{{ site }}</span>
-                          </v-col>
-                          <v-col cols="12" md="7">
-                            <a :href="sitelink.url" target="_blank">{{ sitelink.title }}</a>
-                            <v-chip v-for="badge in sitelink.badges" :key="badge" color="primary" class="ma-2" density="compact">
-                              {{ getBadgeLabel(badge) }}
-                            </v-chip>
-                          </v-col>
-                        </v-row>
-                      </transition-group>
-                    </v-col>
                   </v-col>
                 </v-row>
               </div>
@@ -145,16 +68,12 @@ import { ApiClient, LabelsApi, ItemsApi } from '@wmde/wikibase-rest-api';
 import { debounce } from 'lodash';
 import NavBar from '../components/NavBar.vue';
 
-const user = ref(getUser());
-const router = useRouter();
-const theme = useTheme();
 const drawer = ref(true);
 const activeTab = ref(0);
 const inputId = ref('');
 const search = ref('');
 const suggestions = ref<string[]>([]);
 const loading = ref(false);
-const showMoreLanguages = ref(false);
 
 const viewingItem = ref<string | null>(null);
 const itemJson = ref<any | null>(null);
@@ -163,6 +82,10 @@ const badgeLabels = ref<Map<string, string>>(new Map());
 const apiClient = new ApiClient('https://www.wikidata.org/w/rest.php/wikibase');
 const itemsApi = new ItemsApi(apiClient);
 const labelsApi = new LabelsApi(apiClient);
+
+const terms = ref([]);
+const sitelinks = ref([]);
+const statements = ref([]);
 
 async function reRenderRandomItem() {
   const item = await randomItem();
@@ -201,6 +124,22 @@ watch(viewingItem, async (newItem) => {
     const json = await itemsApi.getItem(newItem);
     itemJson.value = json;
 
+    // Update terms
+    terms.value = Object.keys({ ...itemJson.value.labels, ...itemJson.value.descriptions }).map(lang => ({
+      language: lang,
+      label: itemJson.value.labels[lang],
+      description: itemJson.value.descriptions[lang] || '',
+      aliases: (itemJson.value.aliases[lang] || []).join(', ')
+    }));
+
+    // Update sitelinks
+    sitelinks.value = Object.entries(itemJson.value.sitelinks || {}).map(([site, sitelink]) => ({
+      site,
+      title: sitelink.title,
+      url: sitelink.url,
+      badges: sitelink.badges.map(badge => getBadgeLabel(badge)).join(', ')
+    }));
+
     // Fetch the JSON for the currently selected item from wbgetentities
     const wbgetentitiesUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${newItem}&format=json&origin=*`;
     try {
@@ -235,6 +174,8 @@ watch(viewingItem, async (newItem) => {
     }
   } else {
     itemJson.value = null;
+    terms.value = [];
+    sitelinks.value = [];
     badgeLabels.value.clear();
   }
 });
