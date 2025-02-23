@@ -1,12 +1,30 @@
-class Wikibase {
+import { ApiClient, LabelsApi, ItemsApi } from '@wmde/wikibase-rest-api';
 
-    private apiUrl: string;
+class Wikibase {
+    // Base URL of the Wikibase instance
+    private baseUrl: string;
+
+    // REST API
+    private apiClient: ApiClient;
+    private itemsApi: ItemsApi;
+    private labelsApi: LabelsApi;
 
     // Cached retrieved data
     private cachedSiteInfo: SiteInfoNamespaces | null = null;
 
-    constructor(apiUrl: string) {
-        this.apiUrl = apiUrl;
+    constructor(baseUrl: string) {
+        this.baseUrl = baseUrl;
+        this.apiClient = new ApiClient(this.getRestApiUrl('/wikibase'));
+        this.itemsApi = new ItemsApi(this.apiClient);
+        this.labelsApi = new LabelsApi(this.apiClient);
+    }
+
+    private getActionApiUrl(endpoint: string): string {
+        return `${this.baseUrl}api.php${endpoint}`;
+    }
+
+    private getRestApiUrl(endpoint: string): string {
+        return `${this.baseUrl}rest.php${endpoint}`;
     }
 
     async fetchItemSuggestions(query: string): Promise<{ suggestions: string[], error?: string }> {
@@ -17,7 +35,7 @@ class Wikibase {
         if (query.length === 0) {
             return { suggestions: [] };
         }
-        const url = `${this.apiUrl}?action=wbsearchentities&search=${query}&format=json&errorformat=plaintext&language=en&uselang=en&type=${type}&origin=*`;
+        const url = this.getActionApiUrl(`?action=wbsearchentities&search=${query}&format=json&errorformat=plaintext&language=en&uselang=en&type=${type}&origin=*`);
         try {
             const response = await fetch(url);
             if (response.ok) {
@@ -35,7 +53,7 @@ class Wikibase {
         if (this.cachedSiteInfo) {
             return this.cachedSiteInfo;
         }
-        const url = `${this.apiUrl}?action=query&meta=siteinfo&siprop=namespaces&format=json&origin=*`;
+        const url = this.getActionApiUrl(`?action=query&meta=siteinfo&siprop=namespaces&format=json&origin=*`);
         try {
             const response = await fetch(url);
             if (response.ok) {
@@ -65,7 +83,7 @@ class Wikibase {
     }
 
     async randomPage(namespaceId: number): Promise<string | undefined> {
-        const url = `${this.apiUrl}?action=query&list=random&rnnamespace=${namespaceId}&rnlimit=1&format=json&origin=*`;
+        const url = this.getActionApiUrl(`?action=query&list=random&rnnamespace=${namespaceId}&rnlimit=1&format=json&origin=*`);
         try {
             const response = await fetch(url);
             if (response.ok) {
@@ -82,6 +100,59 @@ class Wikibase {
         if (itemNamespaceId !== undefined) {
             return this.randomPage(itemNamespaceId);
         }
+    }
+
+    async loadItemData(item: string): Promise<Item> {
+        const json = await this.itemsApi.getItem(item);
+
+        // Update terms
+        const terms = Object.keys({ ...json.labels, ...json.descriptions }).map(lang => ({
+            language: lang,
+            label: json.labels[lang],
+            description: json.descriptions[lang] || '',
+            aliases: (json.aliases[lang] || []).join(', ')
+        }));
+
+        // Update sitelinks
+        const sitelinks = Object.entries(json.sitelinks || {}).map(([site, sitelink]) => ({
+            site,
+            title: sitelink.title,
+            url: sitelink.url,
+            badges: sitelink.badges.map(badge => this.getBadgeLabel(badge)).join(', ')
+        }));
+
+        // Fetch badge labels
+        const badges = new Set<string>();
+        for (const sitelink of Object.values(json.sitelinks || {})) {
+            for (const badge of sitelink.badges) {
+                badges.add(badge);
+            }
+        }
+        for (const badge of badges) {
+            const label = await this.fetchItemLabel(badge);
+            if (label) {
+                this.badgeLabels.set(badge, label);
+            }
+        }
+
+        // Update statements
+        const statements = json.claims || [];
+
+        return { terms, sitelinks, statements };
+    }
+
+    private badgeLabels = new Map<string, string>();
+
+    async fetchItemLabel(qNumber: string): Promise<string | undefined> {
+        try {
+            return await this.labelsApi.getItemLabelWithFallback(qNumber, 'en');
+        } catch {
+            return undefined;
+        }
+    }
+
+    private getBadgeLabel(badge: string): string {
+        return this.badgeLabels.get(badge) || badge;
     }
 }
 
@@ -100,4 +171,24 @@ interface Namespace {
     canonical?: string;
     namespaceprotection?: string;
     "*": string;
+}
+
+interface Item {
+    terms: Term[];
+    sitelinks: Sitelink[];
+    statements: any[];
+}
+
+interface Term {
+    language: string;
+    label: string;
+    description: string;
+    aliases: string;
+}
+
+interface Sitelink {
+    site: string;
+    title: string;
+    url: string;
+    badges: string;
 }
