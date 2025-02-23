@@ -68,7 +68,6 @@ const activeTab = ref(0);
 const inputId = ref('');
 const search = ref('');
 const suggestions = ref<string[]>([]);
-const loading = ref(false);
 
 const tabs = ref<string[]>([]);
 const itemJson = ref<any | null>(null);

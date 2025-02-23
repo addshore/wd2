@@ -1,5 +1,9 @@
 class Wikibase {
+
     private apiUrl: string;
+
+    // Cached retrieved data
+    private cachedSiteInfo: SiteInfoNamespaces | null = null;
 
     constructor(apiUrl: string) {
         this.apiUrl = apiUrl;
@@ -27,9 +31,41 @@ class Wikibase {
         }
     }
 
-    async randomItem(): Promise<string | undefined> {
-        // TODO dynamically get the namespace if for items...
-        const url = `${this.apiUrl}?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`;
+    async getSiteInfoNamespaces(): Promise<any> {
+        if (this.cachedSiteInfo) {
+            return this.cachedSiteInfo;
+        }
+        const url = `${this.apiUrl}?action=query&meta=siteinfo&siprop=namespaces&format=json&origin=*`;
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                const data = await response.json();
+                this.cachedSiteInfo = data.query;
+                console.log('Site info:', this.cachedSiteInfo);
+                return this.cachedSiteInfo;
+            } else {
+                throw new Error('Failed to fetch site info');
+            }
+        } catch (error) {
+            console.error('Error fetching site info:', error);
+            throw error;
+        }
+    }
+
+    async getItemNamespaceId(): Promise<number | undefined> {
+        const siteInfoNamespaces = await this.getSiteInfoNamespaces();
+        const itemNamespaceId = Object.keys(siteInfoNamespaces.namespaces).find(key => siteInfoNamespaces.namespaces[key].defaultcontentmodel === 'wikibase-item');
+        return itemNamespaceId ? Number(itemNamespaceId) : undefined;
+    }
+
+    async getPropertyNamespaceId(): Promise<number | undefined> {
+        const siteInfo = await this.getSiteInfoNamespaces();
+        const propertyNamespaceId = Object.keys(siteInfo.namespaces).find(key => siteInfo.namespaces[key].defaultcontentmodel === 'wikibase-property');
+        return propertyNamespaceId ? Number(propertyNamespaceId) : undefined;
+    }
+
+    async randomPage(namespaceId: number): Promise<string | undefined> {
+        const url = `${this.apiUrl}?action=query&list=random&rnnamespace=${namespaceId}&rnlimit=1&format=json&origin=*`;
         try {
             const response = await fetch(url);
             if (response.ok) {
@@ -37,9 +73,31 @@ class Wikibase {
                 return data.query.random[0].title;
             }
         } catch (error) {
-            console.error('Error fetching random item:', error);
+            console.error('Error fetching random page:', error);
+        }
+    }
+
+    async randomItem(): Promise<string | undefined> {
+        const itemNamespaceId = await this.getItemNamespaceId();
+        if (itemNamespaceId !== undefined) {
+            return this.randomPage(itemNamespaceId);
         }
     }
 }
 
 export default Wikibase;
+
+interface SiteInfoNamespaces {
+    namespaces: { [key: string]: Namespace };
+}
+
+interface Namespace {
+    id: number;
+    case: string;
+    content?: string;
+    defaultcontentmodel?: string;
+    subpages?: string;
+    canonical?: string;
+    namespaceprotection?: string;
+    "*": string;
+}
