@@ -38,7 +38,10 @@
         <h2>Sitelinks</h2>
         <v-data-table density="compact" :items="itemsMap.get(tab)?.sitelinks" hide-default-header hide-default-footer :items-per-page="itemsMap.get(tab)?.sitelinks.length || 0"></v-data-table>
         <h2>Statements</h2>
-        <v-data-table density="compact" :items="itemsMap.get(tab)?.statements" hide-default-header hide-default-footer :items-per-page="itemsMap.get(tab)?.statements.length || 0"></v-data-table>
+        <div v-for="(statements, property) in itemsMap.get(tab)?.statements" :key="property">
+          <h3>{{ property }}</h3>
+          <v-data-table density="compact" :items="statements" hide-default-header hide-default-footer :items-per-page="statements.length || 0"></v-data-table>
+        </div>
         <h2>Links</h2>
         <a :href="'https://www.wikidata.org/wiki/' + tab" target="_blank">Wikidata</a>,
         <a :href="'https://www.wikidata.org/w/rest.php/wikibase/v1/entities/items/' + tab" target="_blank">REST API</a>,
@@ -83,10 +86,24 @@ interface Sitelink {
   url: string;
   badges: string;
 }
+interface Statement {
+  id: string;
+  rank: string;
+  qualifiers: any[];
+  references: any[];
+  property: {
+    id: string;
+    data_type: string;
+  };
+  value: {
+    type: string;
+    content: string;
+  };
+}
 interface ItemData {
   terms: Term[];
   sitelinks: Sitelink[];
-  statements: any[];
+  statements: { [property: string]: Statement[] };
 }
 
 const itemsMap = ref<Map<string, ItemData>>(new Map());

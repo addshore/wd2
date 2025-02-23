@@ -136,7 +136,7 @@ class Wikibase {
         }
 
         // Update statements
-        const statements = json.claims || [];
+        const statements = json.statements || [];
 
         return { terms, sitelinks, statements };
     }
