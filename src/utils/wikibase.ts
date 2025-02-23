@@ -19,12 +19,30 @@ class Wikibase {
         this.labelsApi = new LabelsApi(this.apiClient);
     }
 
+    private getIndexUrl(endpoint: string): string {
+        return `${this.baseUrl}index.php${endpoint}`;
+    }
+
     private getActionApiUrl(endpoint: string): string {
         return `${this.baseUrl}api.php${endpoint}`;
     }
 
     private getRestApiUrl(endpoint: string): string {
         return `${this.baseUrl}rest.php${endpoint}`;
+    }
+
+    public async getItemUrl(item: string): Promise<string> {
+        const nsId = await this.getItemNamespaceId();
+        if (nsId === 0) {
+            return this.getIndexUrl(`?title=${item}`);
+        }
+        const siteInfo = await this.getSiteInfoNamespaces();
+        if (nsId !== undefined) {
+            const nsCanonical = siteInfo.namespaces[nsId].canonical;
+            return this.getIndexUrl(`?title=${nsCanonical}:${item}`);
+        } else {
+            throw new Error('Namespace ID is undefined');
+        }
     }
 
     async fetchItemSuggestions(query: string): Promise<{ suggestions: string[], error?: string }> {
@@ -114,34 +132,22 @@ class Wikibase {
         }));
 
         // Update sitelinks
-        const sitelinks = Object.entries(json.sitelinks || {}).map(([site, sitelink]) => ({
+        const sitelinks = await Promise.all(Object.entries(json.sitelinks || {}).map(async ([site, sitelink]) => ({
             site,
             title: sitelink.title,
             url: sitelink.url,
-            badges: sitelink.badges.map(badge => this.getBadgeLabel(badge)).join(', ')
-        }));
-
-        // Fetch badge labels
-        const badges = new Set<string>();
-        for (const sitelink of Object.values(json.sitelinks || {})) {
-            for (const badge of sitelink.badges) {
-                badges.add(badge);
-            }
-        }
-        for (const badge of badges) {
-            const label = await this.fetchItemLabel(badge);
-            if (label) {
-                this.badgeLabels.set(badge, label);
-            }
-        }
+            badges: await Promise.all(sitelink.badges.map(async badge => ({
+                id: badge,
+                label: await this.fetchItemLabel(badge) || badge,
+                url: await this.getItemUrl(badge) || ''
+            })))
+        })));
 
         // Update statements
         const statements = json.statements || [];
 
         return { terms, sitelinks, statements };
     }
-
-    private badgeLabels = new Map<string, string>();
 
     async fetchItemLabel(qNumber: string): Promise<string | undefined> {
         try {
@@ -150,10 +156,7 @@ class Wikibase {
             return undefined;
         }
     }
-
-    private getBadgeLabel(badge: string): string {
-        return this.badgeLabels.get(badge) || badge;
-    }
+    
 }
 
 export default Wikibase;
@@ -190,5 +193,10 @@ interface Sitelink {
     site: string;
     title: string;
     url: string;
-    badges: string;
+    badges: SitelinkBadge[];
 }
+interface SitelinkBadge {
+    id: string;
+    label: string; // TODO make this a term? or set of terms?!
+    url: string;
+  }

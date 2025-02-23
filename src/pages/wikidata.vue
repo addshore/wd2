@@ -36,7 +36,17 @@
         <h2>Terms</h2>
         <v-data-table density="compact" :items="itemsMap.get(tab)?.terms" hide-default-header hide-default-footer :items-per-page="itemsMap.get(tab)?.terms.length || 0"></v-data-table>
         <h2>Sitelinks</h2>
-        <v-data-table density="compact" :items="itemsMap.get(tab)?.sitelinks" hide-default-header hide-default-footer :items-per-page="itemsMap.get(tab)?.sitelinks.length || 0"></v-data-table>
+        <v-data-table density="compact" :items="itemsMap.get(tab)?.sitelinks" hide-default-header hide-default-footer :items-per-page="itemsMap.get(tab)?.sitelinks.length || 0">
+          <template v-slot:item.title="{ item }">
+            {{ item.title }} <a :href="item.url" target="_blank" class="no-underline">🔗</a>
+          </template>
+          <template v-slot:item.url="{ item }"></template>
+          <template v-slot:item.badges="{ item }">
+            <v-chip v-for="badge in item.badges" :key="badge.id" outlined class="outlined-row">
+              <a :href="badge.url" target="_blank" class="no-underline">{{ badge.label }}</a>
+            </v-chip>
+          </template>
+        </v-data-table>
         <h2>Statements</h2>
         <div v-for="(statements, property) in itemsMap.get(tab)?.statements" :key="property">
           <h3>{{ property }}</h3>
@@ -84,7 +94,12 @@ interface Sitelink {
   site: string;
   title: string;
   url: string;
-  badges: string;
+  badges: SitelinkBadge[];
+}
+interface SitelinkBadge {
+  id: string;
+  label: string; // TODO make this a term? or set of terms?!
+  url: string;
 }
 interface Statement {
   id: string;
@@ -201,5 +216,9 @@ watch(search, debounce(updateSuggestions, 100));
 <style scoped>
 .outlined-row {
   border: 1px solid #494949;
+}
+
+.no-underline {
+  text-decoration: none;
 }
 </style>
