@@ -11,7 +11,7 @@
             placeholder="Search Item"
             auto-select-first
             item-props
-            @update:search="fetchSuggestions"
+            @update:search="updateSuggestions"
             @keyup.enter="handleEnter"
           />
         </v-list-item>
@@ -61,6 +61,7 @@ import { generateCodeVerifier, generateCodeChallenge, redirectToAuth } from '../
 import { ApiClient, LabelsApi, ItemsApi } from '@wmde/wikibase-rest-api';
 import { debounce } from 'lodash';
 import NavBar from '../components/NavBar.vue';
+import Wikibase from '../utils/wikibase';
 
 const drawer = ref(true);
 const activeTab = ref(0);
@@ -100,24 +101,23 @@ const termsMap = ref<Map<string, any[]>>(new Map());
 const sitelinksMap = ref<Map<string, any[]>>(new Map());
 const statementsMap = ref<Map<string, any[]>>(new Map());
 
+const wikidata = new Wikibase('https://www.wikidata.org/w/api.php');
+
+const updateSuggestions = async (query: string) => {
+  const result = await wikidata.fetchItemSuggestions(query);
+  if (result.error) {
+    console.error(result.error);
+    suggestions.value = [];
+  } else {
+    suggestions.value = result.suggestions;
+  }
+};
+
 async function newTabRandomItem() {
-  const item = await randomItem();
+  const item = await wikidata.randomItem();
   if (item) {
     addItemToTabs(item);
   }
-}
-
-async function randomItem(): Promise<string | undefined> {
-    const url = `https://www.wikidata.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&format=json&origin=*`;
-    try {
-        const response = await fetch(url);
-        if (response.ok) {
-            const data = await response.json();
-            return data.query.random[0].title;
-        }
-    } catch (error) {
-        console.error('Error fetching random page:', error);
-    }
 }
 
 function handleEnter(event: KeyboardEvent) {
@@ -236,30 +236,7 @@ async function loadItemData(item: string) {
   statements.value = statementsMap.value.get(item) || [];
 }
 
-const fetchSuggestions = async (query: string) => {
-  if (query.length === 0 ) {
-    suggestions.value = [];
-    return;
-  }
-  loading.value = true;
-  const url = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${query}&format=json&errorformat=plaintext&language=en&uselang=en&type=item&origin=*`;
-  try {
-    const response = await fetch(url);
-    if (response.ok) {
-      const data = await response.json();
-      suggestions.value = data.search.map((item: any) => `${item.id} - ${item.label} (${item.description})`);
-    } else {
-      suggestions.value = [];
-    }
-  } catch (error) {
-    console.error('Error fetching suggestions:', error);
-    suggestions.value = [];
-  } finally {
-    loading.value = false;
-  }
-};
-
-watch(search, debounce(fetchSuggestions, 100));
+watch(search, debounce(updateSuggestions, 100));
 
 async function fetchLabel(qNumber: string): Promise<string | undefined> {
     try {
