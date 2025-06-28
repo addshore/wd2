@@ -9,7 +9,7 @@ import { createRouter, createWebHistory } from 'vue-router/auto'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { routes } from 'vue-router/auto-routes'
 import Callback from '../components/Callback.vue';
-import RecentChanges from '../components/RecentChanges.vue';
+import EventStream from '../components/EventStream.vue';
 
 routes.push({
   path: '/auth/mediawiki/callback',
@@ -18,9 +18,9 @@ routes.push({
 })
 
 routes.push({
-  path: '/recentchanges',
-  name: 'RecentChanges',
-  component: RecentChanges,
+  path: '/eventstream',
+  name: 'EventStream',
+  component: EventStream,
 })
 
 const router = createRouter({

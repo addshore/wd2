@@ -3,7 +3,7 @@
     <!-- <v-btn @click="toggleDrawer">Menu</v-btn> -->
     <v-btn @click="goToHome">Home</v-btn>
     <v-btn @click="goToWikidata">Wikidata</v-btn>
-    <v-btn @click="goToRecentChanges">RecentChanges</v-btn>
+    <v-btn @click="goToEventStream">EventStream</v-btn>
     <v-btn @click="goToWikibaseWorld">Wikibase World</v-btn>
     <v-spacer></v-spacer>
     <v-btn @click="toggleTheme">Light / Dark</v-btn>
@@ -48,8 +48,8 @@ function goToWikidata() {
   router.push('/wikidata');
 }
 
-function goToRecentChanges() {
-  router.push('/recentchanges');
+function goToEventStream() {
+  router.push('/eventstream');
 }
 
 function goToWikibaseWorld() {
