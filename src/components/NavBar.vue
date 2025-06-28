@@ -18,13 +18,17 @@ import { useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
 import { getUser, removeUser } from '../utils/storage';
 import { generateCodeVerifier, generateCodeChallenge, redirectToAuth } from '../utils/oauth';
+import { setCodexTheme } from '../utils/codexTheme';
 
 const user = ref(getUser());
 const router = useRouter();
 const theme = useTheme();
 
 function toggleTheme() {
-  theme.global.name.value = theme.global.current.value.dark ? 'light' : 'dark';
+  const isDark = theme.global.current.value.dark;
+  const newTheme = isDark ? 'light' : 'dark';
+  theme.global.name.value = newTheme;
+  setCodexTheme(newTheme);
 }
 
 function logout() {
@@ -55,4 +59,7 @@ function goToEventStream() {
 function goToWikibaseWorld() {
   router.push('/wikibases');
 }
+
+// On mount, sync Codex theme with current Vuetify theme
+setCodexTheme(theme.global.name.value);
 </script>

@@ -13,6 +13,9 @@
   },
   "dependencies": {
     "@mdi/font": "7.4.47",
+    "@wikimedia/codex": "^2.2.0",
+    "@wikimedia/codex-design-tokens": "^2.2.0",
+    "@wikimedia/codex-icons": "^2.2.0",
     "@wmde/wikibase-rest-api": "^1.1.1",
     "chalk": "^5.4.1",
     "core-js": "^3.37.1",

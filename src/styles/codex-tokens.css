@@ -1,0 +1,3 @@
+/* Codex dark mode support: load light and dark design tokens as CSS variables */
+@import '@wikimedia/codex-design-tokens/theme-wikimedia-ui.css';
+@import '@wikimedia/codex-design-tokens/theme-wikimedia-ui-mode-dark.css' only screen and (prefers-color-scheme: dark);

@@ -10,6 +10,7 @@ declare module 'vue' {
     AppFooter: typeof import('./components/AppFooter.vue')['default']
     Callback: typeof import('./components/Callback.vue')['default']
     EventStream: typeof import('./components/EventStream.vue')['default']
+    FeedSettingsDialog: typeof import('./components/FeedSettingsDialog.vue')['default']
     Home: typeof import('./components/Home.vue')['default']
     NavBar: typeof import('./components/NavBar.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

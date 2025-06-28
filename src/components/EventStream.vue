@@ -1,106 +1,77 @@
 <template>
-  <div>
-    <NavBar />
-    <v-container fluid>
-      <v-row>
-        <v-col cols="12">
-          <h4>EventStream  ({{ events.length }}/{{ maxEvents }})</h4>
-          <div style="display: flex; align-items: center; gap: 8px; max-width: 420px; margin-bottom: 16px;">
-            <v-select
-              v-model="selectedStream"
-              :items="availableStreams"
-              label="Select stream"
-              item-title="name"
-              item-value="name"
-              style="flex: 1 1 0;"
-            />
-            <v-btn density="compact" @click="showFilterDialog = true">
-              <v-icon>mdi-cog</v-icon>
-            </v-btn>
-          </div>
-          <v-dialog max-width="500px" v-model="showFilterDialog">
-            <v-card>
-              <v-card-title>
-                <span class="headline">Feed Settings</span>
-              </v-card-title>
-              <v-card-text>
-                <v-text-field
-                  v-model.number="maxEventsInput"
-                  label="Maximum number of entries"
-                  type="number"
-                  min="1"
-                  max="1000"
-                  style="max-width: 200px;"
-                />
-                <v-text-field
-                  v-model.number="samplePercentInput"
-                  label="Sample percent (%)"
-                  type="number"
-                  min="1"
-                  max="100"
-                  style="max-width: 200px; margin-top: 16px;"
-                />
-              </v-card-text>
-              <v-card-actions>
-                <v-spacer />
-                <v-btn color="primary" @click="applyFilter">
-                  Apply
-                </v-btn>
-                <v-btn color="secondary" @click="showFilterDialog = false">
-                  Cancel
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-dialog>
-          <div v-if="selectedStream === 'recentchange'">
-            <v-table height="600px" fixed-header style="width: 100%; max-width: 100%;">
-              <thead>
-                <tr>
-                  <th>Site</th>
-                  <th>Title</th>
-                  <th>User</th>
-                  <th>Comment</th>
-                  <th>Timestamp</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="event in events" :key="event.id">
-                  <td>{{ event.server_name }}</td>
-                  <td>{{ event.title }}</td>
-                  <td>{{ event.user }}</td>
-                  <td>{{ event.comment }}</td>
-                  <td>{{ event.timestamp }}</td>
-                </tr>
-              </tbody>
-            </v-table>
-          </div>
-          <div v-else>
-            <v-table height="600px" fixed-header style="width: 100%; max-width: 100%;">
-              <thead>
-                <tr>
-                  <th>Raw JSON Event</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(event, idx) in events" :key="idx">
-                  <td>
-                    <pre style="white-space: pre-wrap; word-break: break-all; max-width: 100vw;">{{ JSON.stringify(event, null, 2) }}</pre>
-                  </td>
-                </tr>
-              </tbody>
-            </v-table>
-          </div>
-        </v-col>
-      </v-row>
-    </v-container>
+  <NavBar />
+  <div style="padding: 24px; box-sizing: border-box; min-height: 100vh; background: inherit;">
+    <h4 style="margin-bottom: 16px;">EventStream  ({{ events.length }}/{{ maxEvents }})</h4>
+    <div style="display: flex; align-items: center; gap: 8px; max-width: 420px; margin-bottom: 16px;">
+      <cdx-select
+        v-model:selected="selectedStream"
+        :menu-items="streamMenuItems"
+        default-label="Select stream"
+        style="flex: 1 1 0;"
+      />
+      <cdx-button
+        weight="quiet"
+        aria-label="Settings"
+        @click="showFilterDialog = true"
+      >
+        <cdx-icon :icon="cdxIconSettings" />
+      </cdx-button>
+    </div>
+    <span>See: <a href="https://stream.wikimedia.org/v2/ui/#/" target="_blank" rel="noopener">https://stream.wikimedia.org/v2/ui/#/</a></span>
+    <FeedSettingsDialog
+      :show="showFilterDialog"
+      :max-events-input="maxEventsInput"
+      :sample-percent-input="samplePercentInput"
+      @update:show="showFilterDialog = $event"
+      @update:max-events-input="maxEventsInput = $event"
+      @update:sample-percent-input="samplePercentInput = $event"
+      @apply="applyFilter"
+    />
+    <div v-if="selectedStream === 'recentchange'">
+      <div class="table-scroll">
+        <cdx-table
+          :columns="tableColumns"
+          :data="tableData"
+          :caption="`Event stream: ${selectedStream}`"
+          :show-vertical-borders="true"
+          class="event-table"
+        >
+          <template #item-title="{ item }">
+            <a :href="item.url" target="_blank">{{ item.text || 'N/A' }}</a>
+          </template>
+          <template #item-user="{ item }">
+            <a :href="item.url" target="_blank">{{ item.text || 'N/A' }}</a>
+          </template>
+        </cdx-table>
+      </div>
+    </div>
+    <!-- Raw JSON fallback for other streams -->
+    <div v-else>
+      <cdx-table
+        :columns="[{ id: 'raw', label: 'JSON' }]"
+        :data="events.map((event, idx) => ({ raw: JSON.stringify(event, null, 2), id: idx }))"
+        :caption="`Event stream: ${selectedStream}`"
+        :show-vertical-borders="true"
+        class="event-table"
+      >
+        <template #item-raw="{ item }">
+          <pre style="white-space: pre-wrap; word-break: break-all; max-width: 100vw;">{{ item }}</pre>
+        </template>
+      </cdx-table>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { fetchAvailableStreams } from '../utils/fetchAvailableStreams';
-import { onMounted, ref, onUnmounted, watch } from 'vue';
+import { onMounted, ref, onUnmounted, watch, computed } from 'vue';
 import { subscribeToEventStream } from '../utils/eventStream';
 import NavBar from './NavBar.vue';
+import { CdxTable, CdxSelect } from '@wikimedia/codex';
+import { CdxButton, CdxIcon } from '@wikimedia/codex';
+import { cdxIconSettings } from '@wikimedia/codex-icons';
+import FeedSettingsDialog from './FeedSettingsDialog.vue';
+import { useRoute, useRouter } from 'vue-router';
 
 const availableStreams = ref<{ name: string; label?: string }[]>([]);
 const selectedStream = ref('recentchange');
@@ -112,16 +83,62 @@ const samplePercentInput = ref(samplePercent.value);
 const showFilterDialog = ref(false);
 let eventStreamInstance: ReturnType<typeof subscribeToEventStream> | null = null;
 
+const tableColumns = [
+  { id: 'server_name', label: 'Site' },
+  { id: 'title', label: 'Title' },
+  { id: 'user', label: 'User' },
+  { id: 'comment', label: 'Comment' },
+  { id: 'timestamp', label: 'Timestamp' },
+];
+
+const tableData = computed(() => events.value.map(e => ({
+  server_name: e.server_name ?? '',
+  title: {
+    text: e.title ?? '',
+    url: e.title_url ?? '',
+  },
+  user: {
+    text: e.user ?? '',
+    url: e.user ? `https://${e.server_name}/wiki/User:${encodeURIComponent(e.user)}` : '',
+  },
+  comment: e.comment ?? '',
+  timestamp: formatTimestamp(e.timestamp),
+})));
+
+function formatTimestamp(ts: string | number | undefined): string {
+  if (!ts) return '';
+  // If already a string and looks like ISO, just return a shortened version
+  if (typeof ts === 'string' && ts.length > 10 && ts.includes('T')) {
+    // e.g. 2024-06-28T12:34:56Z -> 2024-06-28 12:34:56
+    return ts.replace('T', ' ').replace('Z', '').slice(0, 19);
+  }
+  // If it's a number or string timestamp (UNIX seconds)
+  const n = typeof ts === 'string' ? parseInt(ts, 10) : ts;
+  if (!isNaN(Number(n))) {
+    const d = new Date(Number(n) * (String(n).length === 10 ? 1000 : 1));
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().replace('T', ' ').replace('Z', '').slice(0, 19);
+    }
+  }
+  return String(ts);
+}
+
 // Type for recentchange event
 interface RecentChangeEvent {
   id?: string | number;
   server_name?: string;
   title?: string;
+  title_url?: string;
   user?: string;
   comment?: string;
   timestamp?: string | number;
   [key: string]: unknown;
 }
+
+const streamMenuItems = computed(() => availableStreams.value.map(s => ({
+  label: s.label || s.name,
+  value: s.name,
+})));
 
 function applyFilter() {
   maxEvents.value = Math.max(1, Math.min(1000, maxEventsInput.value));
@@ -131,6 +148,7 @@ function applyFilter() {
   if (events.value.length > maxEvents.value) {
     events.value.splice(maxEvents.value);
   }
+  updateUrlParams();
 }
 
 function startStream() {
@@ -156,29 +174,47 @@ function startStream() {
 }
 
 async function loadAvailableStreams() {
-  try {
-    const streams = await fetchAvailableStreams();
-    availableStreams.value = streams.map((name: string) => ({ name, label: name }));
-    // If the current selectedStream is not in the new list, reset it
-    if (!streams.includes(selectedStream.value)) {
-      selectedStream.value = streams[0] || '';
-    }
-  } catch {
-    // fallback to static list if fetch fails
-    availableStreams.value = [
-      { name: 'recentchange', label: 'Recent Changes' },
-      { name: 'mediawiki.page-create', label: 'Page Create' },
-      { name: 'mediawiki.revision-create', label: 'Revision Create' },
-      { name: 'mediawiki.revision-restore', label: 'Revision Restore' },
-      { name: 'mediawiki.revision-tags-change', label: 'Revision Tags Change' },
-    ];
+  const streams = await fetchAvailableStreams();
+  availableStreams.value = streams.map((name: string) => ({ name, label: name }));
+  // If the current selectedStream is not in the new list, reset it
+  if (!streams.includes(selectedStream.value)) {
+    selectedStream.value = streams[0] || '';
   }
 }
 
+const route = useRoute();
+const router = useRouter();
+
+// Initialize from URL params if present
 onMounted(() => {
+  const { stream, max, sample } = route.query;
+  if (typeof stream === 'string') {
+    selectedStream.value = stream;
+  }
+  if (typeof max === 'string' && !isNaN(Number(max))) {
+    maxEvents.value = Math.max(1, Math.min(1000, Number(max)));
+    maxEventsInput.value = maxEvents.value;
+  }
+  if (typeof sample === 'string' && !isNaN(Number(sample))) {
+    samplePercent.value = Math.max(1, Math.min(100, Number(sample)));
+    samplePercentInput.value = samplePercent.value;
+  }
   loadAvailableStreams();
   startStream();
 });
+
+function updateUrlParams() {
+  router.replace({
+    query: {
+      ...route.query,
+      stream: selectedStream.value,
+      max: String(maxEvents.value),
+      sample: String(samplePercent.value),
+    },
+  });
+}
+
+watch([selectedStream, maxEvents, samplePercent], updateUrlParams);
 
 onUnmounted(() => {
   if (eventStreamInstance) {
@@ -191,9 +227,18 @@ watch(selectedStream, () => {
   maxEventsInput.value = maxEvents.value;
   samplePercentInput.value = samplePercent.value;
   startStream();
+  updateUrlParams();
 });
 </script>
 
 <style scoped>
-/* Add any component-specific styles here */
+.event-table :deep(th),
+.event-table :deep(td) {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 8px 12px;
+  word-break: break-word;
+  max-width: 1px;
+}
 </style>
