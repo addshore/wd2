@@ -1,88 +1,127 @@
 <template>
-  <div>
-    <NavBar />
-    <v-navigation-drawer v-model="drawer" app>
-      <v-list>
-        <v-list-item>
-          <v-autocomplete
-            v-model="inputId"
-            :items="suggestions"
-            menu-icon=""
-            placeholder="Search Item"
-            auto-select-first
-            item-props
-            @update:search="updateSuggestions"
-            @keyup.enter="handleEnter"
-          />
-        </v-list-item>
-        <v-list-item @click="newTabRandomItem">
-          <v-list-item-title>Random Item</v-list-item-title>
-        </v-list-item>
-      </v-list>
-    </v-navigation-drawer>
-    <v-container>
-      <v-tabs v-model="activeTab">
-      <v-tab v-for="(tab, index) in tabs" :key="index">
-        {{ tab }}
-        <v-btn icon density="compact" @click.stop="closeTab(index)">
-        <v-icon>mdi-close</v-icon>
-        </v-btn>
-      </v-tab>
-      <v-tab @click="addNewTab">+</v-tab>
-      </v-tabs>
-      <v-tab-item v-for="(tab, index) in tabs" :key="index">
-      <v-card v-if="activeTab === index">
-        <v-card-text>
+  <NavBar />
+  <div class="wikidata-page">
+    <div class="wikidata-controls">
+      <CdxButton @click="loadRandomItem">
+        Random Item
+      </CdxButton>
+      <CdxTypeaheadSearch
+        id="wikidata-typeahead"
+        v-model="inputId"
+        form-action="javascript:void(0)"
+        :search-results="searchResults"
+        :search-footer-url="searchFooterUrl"
+        :highlight-query="true"
+        :visible-item-limit="5"
+        placeholder="Search Wikidata"
+        :loading="searchLoading"
+        style="max-width: 300px;"
+        :use-button="false"
+        @input="onInput"
+        @search-result-click="onSearchResultClick"
+        @submit="onSubmit"
+        @load-more="onLoadMore"
+      >
+        <template #default>
+          <input type="hidden" name="language" value="en">
+          <input type="hidden" name="title" value="Special:Search">
+        </template>
+        <template #search-footer-text="{ searchQuery }">
+          Search Wikidata for pages containing
+          <strong class="cdx-typeahead-search__search-footer__query">
+            {{ searchQuery }}
+          </strong>
+        </template>
+      </CdxTypeaheadSearch>
+    </div>
+    <v-container v-if="itemId">
+      <template v-if="itemData === null">
+        <div style="display: flex; justify-content: center; align-items: center; min-height: 200px;">
+          <v-progress-circular indeterminate color="primary" size="48" />
+        </div>
+      </template>
+      <template v-else>
         <h2>Terms</h2>
-        <v-data-table density="compact" :items="itemsMap.get(tab)?.terms" hide-default-header hide-default-footer :items-per-page="itemsMap.get(tab)?.terms.length || 0"></v-data-table>
+        <CdxTable
+          :columns="[
+            { id: 'language', label: 'Language' },
+            { id: 'label', label: 'Label' },
+            { id: 'description', label: 'Description' },
+            { id: 'aliases', label: 'Aliases' }
+          ]"
+          :data="itemData.terms || []"
+          :hide-caption="true"
+        />
         <h2>Sitelinks</h2>
-        <v-data-table density="compact" :items="itemsMap.get(tab)?.sitelinks" hide-default-header hide-default-footer :items-per-page="itemsMap.get(tab)?.sitelinks.length || 0">
-          <template v-slot:item.title="{ item }">
-            {{ item.title }} <a :href="item.url" target="_blank" class="no-underline">🔗</a>
-          </template>
-          <template v-slot:item.url="{ item }"></template>
-          <template v-slot:item.badges="{ item }">
-            <v-chip v-for="badge in item.badges" :key="badge.id" outlined class="outlined-row">
-              <a :href="badge.url" target="_blank" class="no-underline">{{ badge.label }}</a>
-            </v-chip>
-          </template>
-        </v-data-table>
+        <CdxTable
+          :columns="[
+            { id: 'site', label: 'Site' },
+            { id: 'title', label: 'Title' },
+            { id: 'badges', label: 'Badges' }
+          ]"
+          :data="(itemData.sitelinks || []).map(s => ({
+            ...s,
+            title: s.url ? `<a href='${s.url}' target='_blank'>${s.title} 🔗</a>` : s.title,
+            badges: s.badges && s.badges.length ? s.badges.map(b => `<a href='${b.url}' target='_blank'>${b.label}</a>`).join(', ') : ''
+          }))"
+          :allow-html="true"
+          :hide-caption="true"
+        />
         <h2>Statements</h2>
-        <div v-for="(statements, property) in itemsMap.get(tab)?.statements" :key="property">
+        <div v-for="(statements, property) in itemData.statements" :key="property">
           <h3>{{ property }}</h3>
-          <v-data-table density="compact" :items="statements" hide-default-header hide-default-footer :items-per-page="statements.length || 0"></v-data-table>
+          <CdxTable
+            :columns="[
+              { id: 'id', label: 'ID' },
+              { id: 'rank', label: 'Rank' },
+              { id: 'value', label: 'Value' }
+            ]"
+            :data="(statements || []).map(s => ({
+              id: s.id,
+              rank: s.rank,
+              value: s.value && s.value.content ? s.value.content : ''
+            }))"
+            :hide-caption="true"
+          />
         </div>
         <h2>Links</h2>
-        <a :href="'https://www.wikidata.org/wiki/' + tab" target="_blank">Wikidata</a>,
-        <a :href="'https://www.wikidata.org/w/rest.php/wikibase/v1/entities/items/' + tab" target="_blank">REST API</a>,
-        <a :href="'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' + tab" target="_blank">Action API</a>,
-        <a :href="'https://www.wikidata.org/wiki/Special:EntityData/' + tab + '.json'" target="_blank">Entity Data</a>,
-        <a :href="'https://reasonator.toolforge.org/?q=' + tab" target="_blank">Reasonator</a>
-        </v-card-text>
-      </v-card>
-      </v-tab-item>
+        <a
+          :href="'https://www.wikidata.org/wiki/' + itemId"
+          target="_blank"
+        >Wikidata</a>,
+        <a
+          :href="'https://www.wikidata.org/w/rest.php/wikibase/v1/entities/items/' + itemId"
+          target="_blank"
+        >REST API</a>,
+        <a
+          :href="'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' + itemId"
+          target="_blank"
+        >Action API</a>,
+        <a
+          :href="'https://www.wikidata.org/wiki/Special:EntityData/' + itemId + '.json'"
+          target="_blank"
+        >Entity Data</a>,
+        <a
+          :href="'https://reasonator.toolforge.org/?q=' + itemId"
+          target="_blank"
+        >Reasonator</a>
+      </template>
     </v-container>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { useTheme } from 'vuetify';
-import { getUser, removeUser } from '../utils/storage';
-import { generateCodeVerifier, generateCodeChallenge, redirectToAuth } from '../utils/oauth';
-import { debounce } from 'lodash';
+import { ref } from 'vue';
 import NavBar from '../components/NavBar.vue';
 import Wikibase from '../utils/wikibase';
+import { CdxButton, CdxTypeaheadSearch, CdxTable } from '@wikimedia/codex';
 
-const drawer = ref(true);
-const activeTab = ref(0);
 const inputId = ref('');
-const search = ref('');
-const suggestions = ref<string[]>([]);
-
-const tabs = ref<string[]>([]);
-const itemJson = ref<any | null>(null);
+const searchResults = ref<any[]>([]);
+const searchFooterUrl = ref('');
+const currentSearchTerm = ref('');
+const itemId = ref<string | null>(null);
+const searchLoading = ref(false);
 
 interface Term {
   language: string;
@@ -90,16 +129,16 @@ interface Term {
   description: string;
   aliases: string;
 }
+interface SitelinkBadge {
+  id: string;
+  label: string;
+  url: string;
+}
 interface Sitelink {
   site: string;
   title: string;
   url: string;
   badges: SitelinkBadge[];
-}
-interface SitelinkBadge {
-  id: string;
-  label: string; // TODO make this a term? or set of terms?!
-  url: string;
 }
 interface Statement {
   id: string;
@@ -121,103 +160,86 @@ interface ItemData {
   statements: { [property: string]: Statement[] };
 }
 
-const itemsMap = ref<Map<string, ItemData>>(new Map());
-
+const itemData = ref<ItemData | null>(null);
 const wikidata = new Wikibase('https://www.wikidata.org/w/');
 
-const updateSuggestions = async (query: string) => {
-  const result = await wikidata.fetchItemSuggestions(query);
-  if (result.error) {
-    console.error(result.error);
-    suggestions.value = [];
-  } else {
-    suggestions.value = result.suggestions;
-  }
-};
-
-async function newTabRandomItem() {
+async function loadRandomItem() {
   const item = await wikidata.randomItem();
   if (item) {
-    addItemToTabs(item);
-  }
-}
-
-function handleEnter(event: KeyboardEvent) {
-  if (event.ctrlKey) {
-    addItemToTabs(inputId.value);
-  } else {
-    loadItemFromInput();
-  }
-}
-
-async function loadItemFromInput() {
-  console.log('loadItemFromInput', inputId.value);
-  if (inputId.value) {
-    const match = inputId.value.match(/Q\d+/);
-    const id = match ? match[0] : inputId.value;
-    addItemToTabs(id);
-  }
-}
-
-function addItemToTabs(item: string) {
-  if (!tabs.value.includes(item)) {
-    tabs.value.push(item);
-  }
-  activeTab.value = tabs.value.indexOf(item);
-
-  // Ensure the content is displayed when the first tab is loaded
-  if (tabs.value.length === 1) {
+    inputId.value = item;
     loadItemData(item);
   }
 }
 
-function addNewTab() {
-  const newTab = `New Tab ${tabs.value.length + 1}`;
-  tabs.value.push(newTab);
-  activeTab.value = tabs.value.length - 1;
+async function loadItemData(id: string) {
+  itemId.value = id;
+  itemData.value = null;
+  const data = await wikidata.loadItemData(id);
+  itemData.value = data;
 }
 
-function closeTab(index: number) {
-  const closedItem = tabs.value[index];
-  tabs.value.splice(index, 1);
-
-  // Adjust selected tab
-  if (index <= activeTab.value) {
-    activeTab.value = activeTab.value - 1;
-  }
-  if (activeTab.value < 0) {
-    activeTab.value = 0;
-  }
-
-  // Remove data from map if no tabs are open for the item
-  if (!tabs.value.includes(closedItem)) {
-    itemsMap.value.delete(closedItem);
-  }
-}
-
-watch(activeTab, async (newTabIndex) => {
-  const newItem = tabs.value[newTabIndex];
-  if (!newItem) {
-    itemJson.value = null;
+async function onInput(value: string) {
+  currentSearchTerm.value = value;
+  if (!value || value === '') {
+    searchResults.value = [];
+    searchFooterUrl.value = '';
     return;
   }
-
-  loadItemData(newItem);
-});
-
-async function loadItemData(item: string) {
-  const data = await wikidata.loadItemData(item);
-  itemsMap.value.set(item, data);
+  searchLoading.value = true;
+  try {
+    const data = await wikidata.fetchItemSuggestions(value);
+    if (currentSearchTerm.value === value) {
+      searchResults.value = data.suggestions && data.suggestions.length > 0 ? data.suggestions : [];
+      searchFooterUrl.value = `https://www.wikidata.org/w/index.php?search=${encodeURIComponent(value)}&title=Special%3ASearch&fulltext=1`;
+    }
+  } catch {
+    searchResults.value = [];
+    searchFooterUrl.value = '';
+  }
+  searchLoading.value = false;
 }
 
-watch(search, debounce(updateSuggestions, 100));
+async function onLoadMore() {
+  if (!currentSearchTerm.value) return;
+  // fetchItemSuggestions does not support offset, so just return
+}
+
+function onSearchResultClick(value: any) {
+  const id = value.searchResult.value
+  inputId.value = id;
+  loadItemData(id);
+}
+
+function onSubmit(value: any, event?: Event) {
+  if (event) event.preventDefault();
+  // If there are search results, select the top one
+  if (searchResults.value.length > 0) {
+    const topResult = searchResults.value[0];
+    if (topResult && topResult.value) {
+      inputId.value = topResult.value;
+      loadItemData(topResult.value);
+      return;
+    }
+  }
+}
 </script>
 
 <style scoped>
+.wikidata-page {
+  padding: 24px;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+.wikidata-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  margin-bottom: 16px;
+}
 .outlined-row {
   border: 1px solid #494949;
 }
-
 .no-underline {
   text-decoration: none;
 }

@@ -1,4 +1,5 @@
 import { ApiClient, LabelsApi, ItemsApi } from '@wmde/wikibase-rest-api';
+import { getAccessToken } from './storage';
 
 class Wikibase {
     // Base URL of the Wikibase instance
@@ -55,7 +56,10 @@ class Wikibase {
         }
         const url = this.getActionApiUrl(`?action=wbsearchentities&search=${query}&format=json&errorformat=plaintext&language=en&uselang=en&type=${type}&origin=*`);
         try {
-            const response = await fetch(url);
+            const headers: Record<string, string> = {};
+            const token = getAccessToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const response = await fetch(url, { headers });
             if (response.ok) {
                 const data = await response.json();
                 return { suggestions: data.search.map((item: { id: string, label: string, description: string }) => `${item.id} - ${item.label} (${item.description})`) };
@@ -103,7 +107,10 @@ class Wikibase {
     async randomPage(namespaceId: number): Promise<string | undefined> {
         const url = this.getActionApiUrl(`?action=query&list=random&rnnamespace=${namespaceId}&rnlimit=1&format=json&origin=*`);
         try {
-            const response = await fetch(url);
+            const headers: Record<string, string> = {};
+            const token = getAccessToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const response = await fetch(url, { headers });
             if (response.ok) {
                 const data = await response.json();
                 return data.query.random[0].title;

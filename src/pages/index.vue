@@ -28,6 +28,7 @@ if (accessToken) {
   fetch('https://www.wikidata.org/w/api.php?action=query&meta=userinfo&uiprop=editcount&format=json&formatversion=2&crossorigin=', {
     headers: {
       Authorization: `Bearer ${accessToken.value}`,
+      'Content-Type': 'application/json',
     },
     method: 'POST',
   }).then(r => r.json()).then(r => {
