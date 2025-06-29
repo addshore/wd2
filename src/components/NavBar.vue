@@ -4,7 +4,6 @@
     <v-btn @click="goToHome">Home</v-btn>
     <v-btn @click="goToWikidata">Wikidata</v-btn>
     <v-btn @click="goToEventStream">EventStream</v-btn>
-    <v-btn @click="goToWikibaseWorld">Wikibase World</v-btn>
     <v-spacer></v-spacer>
     <v-btn @click="toggleTheme">Light / Dark</v-btn>
     <v-btn v-if="user" @click="logout">Logout</v-btn>
@@ -54,10 +53,6 @@ function goToWikidata() {
 
 function goToEventStream() {
   router.push('/eventstream');
-}
-
-function goToWikibaseWorld() {
-  router.push('/wikibases');
 }
 
 // On mount, sync Codex theme with current Vuetify theme
