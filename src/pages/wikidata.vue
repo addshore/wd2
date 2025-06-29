@@ -60,15 +60,25 @@
             { id: 'title', label: 'Title' },
             { id: 'badges', label: 'Badges' }
           ]"
-          :data="(itemData.sitelinks || []).map(s => ({
-            ...s,
-            title: s.url ? `<a href='${s.url}' target='_blank'>${s.title} 🔗</a>` : s.title,
-            badges: s.badges && s.badges.length ? s.badges.map(b => `<a href='${b.url}' target='_blank'>${b.label}</a>`).join(', ') : ''
-          }))"
-          :allow-html="true"
+          :data="itemData.sitelinks || []"
           caption="Sitelinks table"
           :hide-caption="true"
-        />
+        >
+          <template #item-title="{ row }">
+            <a
+              :href="row.url"
+              target="_blank"
+              class="no-underline"
+            >
+              {{ row.title.text }}
+            </a>
+          </template>
+          <template #item-badges="{ row }">
+            <span v-for="badge in row.badges" :key="badge.id" class="cdx-badge cdx-badge--quiet">
+              {{ badge.label }}
+            </span>
+          </template>
+        </CdxTable>
         <h2>Statements</h2>
         <div v-for="(statements, property) in itemData.statements" :key="property">
           <h3>{{ property }}</h3>
@@ -139,7 +149,10 @@ interface SitelinkBadge {
 }
 interface Sitelink {
   site: string;
-  title: string;
+  title: {
+    text: string;
+    url?: string;
+  };
   url: string;
   badges: SitelinkBadge[];
 }
@@ -186,6 +199,13 @@ async function loadItemData(id: string) {
   itemId.value = id;
   itemData.value = null;
   const data = await wikidata.loadItemData(id);
+  // Transform sitelinks to use the new title object structure
+  if (data && Array.isArray(data.sitelinks)) {
+    data.sitelinks = data.sitelinks.map((s: any) => ({
+      ...s,
+      title: typeof s.title === 'string' ? { text: s.title, url: s.url } : s.title
+    }));
+  }
   itemData.value = data;
 }
 
