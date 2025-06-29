@@ -50,6 +50,7 @@
             { id: 'aliases', label: 'Aliases' }
           ]"
           :data="itemData.terms || []"
+          caption="Terms table"
           :hide-caption="true"
         />
         <h2>Sitelinks</h2>
@@ -65,6 +66,7 @@
             badges: s.badges && s.badges.length ? s.badges.map(b => `<a href='${b.url}' target='_blank'>${b.label}</a>`).join(', ') : ''
           }))"
           :allow-html="true"
+          caption="Sitelinks table"
           :hide-caption="true"
         />
         <h2>Statements</h2>
@@ -81,6 +83,7 @@
               rank: s.rank,
               value: s.value && s.value.content ? s.value.content : ''
             }))"
+            caption="Statements table for {{ property }}"
             :hide-caption="true"
           />
         </div>
