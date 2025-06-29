@@ -163,6 +163,14 @@ interface ItemData {
   statements: { [property: string]: Statement[] };
 }
 
+// Use the new suggestion object type
+interface WikidataSuggestion {
+  id: string;
+  label: string;
+  description: string;
+  display: string;
+}
+
 const itemData = ref<ItemData | null>(null);
 const wikidata = new Wikibase('https://www.wikidata.org/w/');
 
@@ -182,8 +190,10 @@ async function loadItemData(id: string) {
 }
 
 async function onInput(value: string) {
+  console.log('[WikidataSearch] onInput called with value:', value);
   currentSearchTerm.value = value;
   if (!value || value === '') {
+    console.log('[WikidataSearch] Empty value, clearing results.');
     searchResults.value = [];
     searchFooterUrl.value = '';
     return;
@@ -191,15 +201,22 @@ async function onInput(value: string) {
   searchLoading.value = true;
   try {
     const data = await wikidata.fetchItemSuggestions(value);
+    console.log('[WikidataSearch] API response:', data);
     if (currentSearchTerm.value === value) {
-      searchResults.value = data.suggestions && data.suggestions.length > 0 ? data.suggestions : [];
+      // Use the richer suggestion objects directly
+      searchResults.value = data.suggestions;
+      console.log('[WikidataSearch] Setting searchResults:', data.suggestions);
       searchFooterUrl.value = `https://www.wikidata.org/w/index.php?search=${encodeURIComponent(value)}&title=Special%3ASearch&fulltext=1`;
+    } else {
+      console.log('[WikidataSearch] Skipping update, input changed during async.');
     }
-  } catch {
+  } catch (e) {
+    console.log('[WikidataSearch] Error during fetchItemSuggestions:', e);
     searchResults.value = [];
     searchFooterUrl.value = '';
   }
   searchLoading.value = false;
+  console.log('[WikidataSearch] searchLoading set to false');
 }
 
 async function onLoadMore() {
@@ -207,20 +224,22 @@ async function onLoadMore() {
   // fetchItemSuggestions does not support offset, so just return
 }
 
-function onSearchResultClick(value: any) {
-  const id = value.searchResult.value
+function onSearchResultClick(value: { searchResult: WikidataSuggestion }) {
+  console.log('[WikidataSearch] onSearchResultClick', value);
+  // Use the value property for Codex compatibility
+  const id = value.searchResult.value;
   inputId.value = id;
   loadItemData(id);
 }
 
-function onSubmit(value: any, event?: Event) {
+function onSubmit(value: WikidataSuggestion, event?: Event) {
   if (event) event.preventDefault();
   // If there are search results, select the top one
   if (searchResults.value.length > 0) {
     const topResult = searchResults.value[0];
-    if (topResult && topResult.value) {
-      inputId.value = topResult.value;
-      loadItemData(topResult.value);
+    if (topResult && topResult.id) {
+      inputId.value = topResult.id;
+      loadItemData(topResult.id);
       return;
     }
   }

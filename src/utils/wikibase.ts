@@ -46,8 +46,34 @@ class Wikibase {
         }
     }
 
-    async fetchItemSuggestions(query: string): Promise<{ suggestions: string[], error?: string }> {
-        return this.fetchSuggestions(query, 'item');
+    async fetchItemSuggestions(query: string): Promise<{ suggestions: Array<{ id: string; label: string; description: string; display: string }>, error?: string }> {
+        if (query.length === 0) {
+            return { suggestions: [] };
+        }
+        const url = this.getActionApiUrl(`?action=wbsearchentities&search=${query}&format=json&errorformat=plaintext&language=en&uselang=en&type=item&origin=*`);
+        try {
+            const headers: Record<string, string> = {};
+            const token = getAccessToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const response = await fetch(url, { headers });
+            if (response.ok) {
+                const data = await response.json();
+                // Return all info needed for the UI
+                return {
+                    suggestions: (data.search || []).map((item: any) => ({
+                        id: item.id,
+                        value: item.id, // Add value property for Codex
+                        label: item.label || item.id,
+                        description: item.description || '',
+                        display: item.label && item.description ? `${item.label} (${item.description})` : (item.label || item.id)
+                    }))
+                };
+            } else {
+                return { suggestions: [], error: 'Failed to fetch suggestions' };
+            }
+        } catch (error) {
+            return { suggestions: [], error: String(error) };
+        }
     }
 
     async fetchSuggestions(query: string, type: string): Promise<{ suggestions: string[], error?: string }> {
