@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix"
+    "lint": "eslint . --fix",
+    "test": "vitest run --reporter=verbose"
   },
   "dependencies": {
     "@mdi/font": "7.4.47",
@@ -19,6 +20,8 @@
     "@wmde/wikibase-rest-api": "^1.1.1",
     "chalk": "^5.4.1",
     "core-js": "^3.37.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "lodash": "^4.17.21",
     "mwn": "^2.0.4",
     "roboto-fontface": "*",
@@ -39,6 +42,7 @@
     "pinia": "^2.1.7",
     "sass": "1.77.8",
     "sass-embedded": "^1.77.8",
+    "supertest": "^7.1.1",
     "typescript": "~5.6.3",
     "unplugin-auto-import": "^0.17.6",
     "unplugin-fonts": "^1.1.1",
